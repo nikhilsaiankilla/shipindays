@@ -1,0 +1,14 @@
+{
+    "extends": "@repo/typescript-config/base.json",
+    "compilerOptions": {
+        "module": "ESNext",
+        "moduleResolution": "Bundler",
+        "target": "ES2022",
+        "outDir": "dist",
+        "rootDir": "src",
+        "strict": true
+    },
+    "include": [
+        "src"
+    ]
+}
