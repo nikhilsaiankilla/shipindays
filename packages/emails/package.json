@@ -1,9 +1,8 @@
 {
-  "name": "@shipindays/lemon-squeezy",
+  "name": "@shipindays/email",
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "main": "src/index.ts",
   "exports": {
     ".": "./src/index.ts"
   },
@@ -12,7 +11,8 @@
     "check-types": "tsc --noEmit"
   },
   "dependencies": {
-    "@shipindays/payments": "workspace:*"
+    "@shipindays/resend": "workspace:*",
+    "@shipindays/mailgun": "workspace:*"
   },
   "devDependencies": {
     "@repo/eslint-config": "workspace:*",

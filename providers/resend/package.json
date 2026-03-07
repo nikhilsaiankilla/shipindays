@@ -1,5 +1,5 @@
 {
-  "name": "@shipindays/lemon-squeezy",
+  "name": "@shipindays/resend",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -12,7 +12,8 @@
     "check-types": "tsc --noEmit"
   },
   "dependencies": {
-    "@shipindays/payments": "workspace:*"
+    "resend": "^3.2.0",
+    "@shipindays/email": "workspace:*"
   },
   "devDependencies": {
     "@repo/eslint-config": "workspace:*",
