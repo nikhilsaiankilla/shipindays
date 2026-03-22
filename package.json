@@ -1,6 +1,6 @@
 {
   "name": "@shipindays/shipindays",
-  "version": "0.1.6",
+  "version": "0.1.7",
   "description": "Scaffold a production ready Next.js SaaS in seconds. Pick your stack, get auth + payments + email wired up.",
   "type": "module",
   "bin": {
