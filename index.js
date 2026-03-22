@@ -20,7 +20,7 @@ const BLOCKS_DIR = path.join(TEMPLATES_DIR, "blocks");
 
 function printBanner() {
   console.log("\n");
-  console.log(chalk.green("  shipindays testing"));
+  console.log(chalk.green("  ⚡ shipindays"));
   console.log(chalk.dim("  Ship your SaaS in days, not months."));
   console.log(chalk.dim("  https://shipindays.nikhilsai.com\n"));
 }
@@ -72,7 +72,9 @@ const EMAIL_PROVIDERS = {
 
 const ENV_VARS = {
   base: {
-    "# App": ["NEXT_PUBLIC_APP_URL=http://localhost:3000"],
+    "# App": [
+      "NEXT_PUBLIC_APP_URL=http://localhost:3000",
+    ],
   },
 
   auth: {
@@ -84,19 +86,26 @@ const ENV_VARS = {
       ],
     },
     nextauth: {
-      "# NextAuth": ["AUTH_SECRET=", "NEXTAUTH_URL=http://localhost:3000"],
+      "# NextAuth": [
+        "AUTH_SECRET=",
+        "NEXTAUTH_URL=http://localhost:3000",
+      ],
       "# OAuth — Google (console.cloud.google.com)": [
         "AUTH_GOOGLE_ID=",
         "AUTH_GOOGLE_SECRET=",
       ],
-      "# OAuth — GitHub (github.com → Settings → Developer settings → OAuth Apps)":
-        ["AUTH_GITHUB_ID=", "AUTH_GITHUB_SECRET="],
+      "# OAuth — GitHub (github.com → Settings → Developer settings → OAuth Apps)": [
+        "AUTH_GITHUB_ID=",
+        "AUTH_GITHUB_SECRET=",
+      ],
     },
   },
 
   email: {
     resend: {
-      "# Resend (resend.com → API Keys)": ["RESEND_API_KEY="],
+      "# Resend (resend.com → API Keys)": [
+        "RESEND_API_KEY=",
+      ],
     },
     nodemailer: {
       "# SMTP / Nodemailer": [
@@ -148,19 +157,19 @@ async function injectBlock(feature, provider, targetPath) {
   const blockSrcDir = path.join(blockRoot, "src");
 
   // Check block folder exists
-  if (!(await fs.pathExists(blockRoot))) {
+  if (!await fs.pathExists(blockRoot)) {
     throw new Error(
       `Block not found: ${blockRoot}\n` +
-        `Make sure templates/blocks/${feature}/${provider}/ exists.`,
+      `Make sure templates/blocks/${feature}/${provider}/ exists.`
     );
   }
 
   // Check src/ folder exists inside block
-  if (!(await fs.pathExists(blockSrcDir))) {
+  if (!await fs.pathExists(blockSrcDir)) {
     throw new Error(
       `Block src/ folder missing: ${blockSrcDir}\n` +
-        `Every block must have a src/ folder.\n` +
-        `Structure: templates/blocks/${feature}/${provider}/src/...`,
+      `Every block must have a src/ folder.\n` +
+      `Structure: templates/blocks/${feature}/${provider}/src/...`
     );
   }
 
@@ -169,7 +178,9 @@ async function injectBlock(feature, provider, targetPath) {
   // - New files → created fresh in the project
   await fs.copy(blockSrcDir, path.join(targetPath, "src"), {
     overwrite: true,
-    filter: (src) => !src.includes("node_modules") && !src.includes(".next"),
+    filter: (src) =>
+      !src.includes("node_modules") &&
+      !src.includes(".next"),
   });
 }
 
@@ -184,8 +195,8 @@ async function mergePackageJson(targetPath, feature, provider) {
   const blockPkgPath = path.join(BLOCKS_DIR, feature, provider, "package.json");
   const targetPkgPath = path.join(targetPath, "package.json");
 
-  if (!(await fs.pathExists(blockPkgPath))) return;
-  if (!(await fs.pathExists(targetPkgPath))) return;
+  if (!await fs.pathExists(blockPkgPath)) return;
+  if (!await fs.pathExists(targetPkgPath)) return;
 
   const targetPkg = await fs.readJson(targetPkgPath);
   const blockPkg = await fs.readJson(blockPkgPath);
@@ -233,16 +244,10 @@ function buildEnvExample(choices) {
 // ─────────────────────────────────────────────────────────────────────────────
 // HELPERS
 // ─────────────────────────────────────────────────────────────────────────────
-function isValidName(n) {
-  return /^[a-zA-Z0-9-_]+$/.test(n);
-}
+function isValidName(n) { return /^[a-zA-Z0-9-_]+$/.test(n); }
 
 function toSlug(s) {
-  return s
-    .trim()
-    .toLowerCase()
-    .replace(/\s+/g, "-")
-    .replace(/[^a-z0-9-_]/g, "");
+  return s.trim().toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-_]/g, "");
 }
 
 function detectPM() {
@@ -250,9 +255,7 @@ function detectPM() {
   return a.includes("pnpm") ? "pnpm" : a.includes("yarn") ? "yarn" : "npm";
 }
 
-function run(cmd, cwd) {
-  execSync(cmd, { cwd, stdio: "inherit" });
-}
+function run(cmd, cwd) { execSync(cmd, { cwd, stdio: "inherit" }); }
 
 function buildGitignore() {
   return [
@@ -303,9 +306,7 @@ function printNextSteps(projectDir, pm, choices) {
   s(`${runCmd} db:push`);
   s(`${runCmd} dev`);
   console.log("");
-  console.log(
-    chalk.dim("  GitHub  → https://github.com/nikhilsaiankilla/shipindays"),
-  );
+  console.log(chalk.dim("  GitHub  → https://github.com/nikhilsaiankilla/shipindays"));
   console.log(chalk.dim("  Twitter → https://x.com/itzznikhilsai"));
   console.log("");
   console.log(chalk.green("  ⚡ Now go build what only you can build.\n"));
@@ -333,10 +334,7 @@ async function main() {
         }
       },
     });
-    if (p.isCancel(answer)) {
-      p.cancel("Cancelled.");
-      process.exit(0);
-    }
+    if (p.isCancel(answer)) { p.cancel("Cancelled."); process.exit(0); }
     projectDir = answer;
   }
 
@@ -348,17 +346,14 @@ async function main() {
     ? path.basename(process.cwd())
     : toSlug(path.basename(projectDir.replace(/^\.\//, "")));
 
-  if (!isCurrentDir && (await fs.pathExists(targetPath))) {
-    const files = (await fs.readdir(targetPath)).filter((f) => f !== ".git");
+  if (!isCurrentDir && await fs.pathExists(targetPath)) {
+    const files = (await fs.readdir(targetPath)).filter(f => f !== ".git");
     if (files.length > 0) {
       const ok = await p.confirm({
         message: `${projectDir} is not empty. Overwrite?`,
         initialValue: false,
       });
-      if (p.isCancel(ok) || !ok) {
-        p.cancel("Cancelled.");
-        process.exit(0);
-      }
+      if (p.isCancel(ok) || !ok) { p.cancel("Cancelled."); process.exit(0); }
     }
   }
 
@@ -366,52 +361,44 @@ async function main() {
   const authProvider = await p.select({
     message: "Auth provider",
     options: Object.entries(AUTH_PROVIDERS).map(([value, { label, hint }]) => ({
-      value,
-      label,
-      hint,
+      value, label, hint,
     })),
   });
-  if (p.isCancel(authProvider)) {
-    p.cancel("Cancelled.");
-    process.exit(0);
-  }
+  if (p.isCancel(authProvider)) { p.cancel("Cancelled."); process.exit(0); }
 
   // ── 3. Pick email provider ─────────────────────────────────────────────────
   const emailProvider = await p.select({
     message: "Email provider",
-    options: Object.entries(EMAIL_PROVIDERS).map(
-      ([value, { label, hint }]) => ({
-        value,
-        label,
-        hint,
-      }),
-    ),
+    options: Object.entries(EMAIL_PROVIDERS).map(([value, { label, hint }]) => ({
+      value, label, hint,
+    })),
   });
-  if (p.isCancel(emailProvider)) {
-    p.cancel("Cancelled.");
-    process.exit(0);
-  }
+  if (p.isCancel(emailProvider)) { p.cancel("Cancelled."); process.exit(0); }
 
   const choices = {
     auth: authProvider,
     email: emailProvider,
   };
 
+  // ── 4. Git + install ───────────────────────────────────────────────────────
+  const initGit = await p.confirm({
+    message: "Initialize a git repository?",
+    initialValue: true,
+  });
+  if (p.isCancel(initGit)) { p.cancel("Cancelled."); process.exit(0); }
+
   const pm = detectPM();
   const install = await p.confirm({
     message: `Install dependencies with ${pm}?`,
     initialValue: true,
   });
-  if (p.isCancel(install)) {
-    p.cancel("Cancelled.");
-    process.exit(0);
-  }
+  if (p.isCancel(install)) { p.cancel("Cancelled."); process.exit(0); }
 
   const spin = p.spinner();
 
   // ── 5. Copy base template ──────────────────────────────────────────────────
   spin.start("Copying base template...");
-  if (!(await fs.pathExists(BASE_DIR))) {
+  if (!await fs.pathExists(BASE_DIR)) {
     spin.stop(chalk.red(`Base template not found: ${BASE_DIR}`));
     process.exit(1);
   }
@@ -446,7 +433,7 @@ async function main() {
   spin.start("Writing .env.example...");
   await fs.outputFile(
     path.join(targetPath, ".env.example"),
-    buildEnvExample(choices),
+    buildEnvExample(choices)
   );
   spin.stop(".env.example written.");
 
@@ -463,12 +450,27 @@ async function main() {
   }
   spin.stop("package.json configured.");
 
+  // ── 11. Git init ───────────────────────────────────────────────────────────
+  if (initGit) {
+    spin.start("Initialising git...");
+    try {
+      run("git init", targetPath);
+      run("git add -A", targetPath);
+      run(`git commit -m "chore: scaffold from shipindays"`, targetPath);
+      spin.stop("Git initialised.");
+    } catch {
+      spin.stop(chalk.yellow("Git skipped — run manually."));
+    }
+  }
+
   // ── 12. Install dependencies ───────────────────────────────────────────────
   if (install) {
     spin.start(`Installing with ${pm}...`);
     try {
       const cmd =
-        pm === "yarn" ? "yarn" : pm === "pnpm" ? "pnpm install" : "npm install";
+        pm === "yarn" ? "yarn" :
+          pm === "pnpm" ? "pnpm install" :
+            "npm install";
       run(cmd, targetPath);
       spin.stop("Dependencies installed.");
     } catch {
