@@ -1,0 +1,38 @@
+{
+  "name": "@shipindays/shipindays",
+  "version": "0.1.4",
+  "description": "Scaffold a production ready Next.js SaaS in seconds. Pick your stack, get auth + payments + email wired up.",
+  "type": "module",
+  "bin": {
+    "create-shipindays": "./index.js"
+  },
+  "files": [
+    "index.js",
+    "templates"
+  ],
+  "keywords": [
+    "nextjs",
+    "saas",
+    "starter",
+    "boilerplate",
+    "supabase",
+    "drizzle",
+    "stripe",
+    "resend"
+  ],
+  "author": "Nikhil Sai <nikhilsaiankilla@gmail.com>",
+  "license": "MIT",
+  "homepage": "https://shipindays.nikhilsai.com",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/nikhilsaiankilla/shipindays"
+  },
+  "dependencies": {
+    "@clack/prompts": "^0.9.1",
+    "chalk": "^5.3.0",
+    "fs-extra": "^11.2.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

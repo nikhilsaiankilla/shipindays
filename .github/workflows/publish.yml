@@ -1,0 +1,67 @@
+# .github/workflows/publish.yml
+
+name: Auto version bump + publish
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+          registry-url: "https://registry.npmjs.org"
+
+      - name: Install deps
+        run: npm install
+        env:
+          HUSKY: "0"
+
+      - name: Auto bump version based on commit message
+        id: bump
+        env:
+          HUSKY: "0"
+        run: |
+          COMMIT_MSG=$(git log -1 --pretty=%B)
+          echo "Commit: $COMMIT_MSG"
+
+          if echo "$COMMIT_MSG" | grep -qE "^feat!|BREAKING CHANGE"; then
+            BUMP="major"
+          elif echo "$COMMIT_MSG" | grep -qE "^feat"; then
+            BUMP="minor"
+          else
+            BUMP="patch"
+          fi
+
+          echo "Bump type: $BUMP"
+
+          git config user.email "github-actions@github.com"
+          git config user.name "github-actions"
+
+          # ← THIS is the fix
+          # npm install may have changed package-lock.json
+          # stash those changes so git working directory is clean
+          git stash
+
+          npm version $BUMP -m "chore: release %s [skip ci]"
+
+          git push --follow-tags
+
+      - name: Publish to npm
+        run: npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

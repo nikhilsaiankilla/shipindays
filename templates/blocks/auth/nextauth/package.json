@@ -1,0 +1,9 @@
+{
+  "dependencies": {
+    "next-auth": "^5.0.0-beta.22",
+    "bcryptjs": "^2.4.3"
+  },
+  "devDependencies": {
+    "@types/bcryptjs": "^2.4.6"
+  }
+}
