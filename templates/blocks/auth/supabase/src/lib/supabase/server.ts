@@ -9,13 +9,35 @@
 //
 // NEVER use this in "use client" components — use client.ts instead.
 // ─────────────────────────────────────────────────────────────────────────────
-
 import { createServerClient } from "@supabase/ssr";
+import { SupabaseClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
 
-export async function createSupabaseServerClient() {
-  const cookieStore = await cookies();
+type CookieStore = {
+  getAll(): Array<{ name: string; value: string }>;
+  set(
+    name: string,
+    value: string,
+    options: {
+      path?: string;
+      httpOnly?: boolean;
+      secure?: boolean;
+      sameSite?: "lax" | "strict" | "none";
+      maxAge?: number;
+      expires?: Date;
+    }
+  ): void;
+};
 
+function normalizeSameSite(
+  sameSite: boolean | "lax" | "strict" | "none" | undefined
+): "lax" | "strict" | "none" | undefined {
+  if (sameSite === true) return "lax";
+  if (sameSite === false) return undefined;
+  return sameSite;
+}
+
+export function createSupabaseAuthServer(cookieStore: CookieStore) {
   return createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -24,17 +46,31 @@ export async function createSupabaseServerClient() {
         getAll() {
           return cookieStore.getAll();
         },
-        setAll(cookiesToSet) {
-          try {
-            cookiesToSet.forEach(({ name, value, options }) =>
-              cookieStore.set(name, value, options),
-            );
-          } catch {
-            // called from a Server Component — safe to ignore
-            // middleware handles cookie refresh instead
-          }
+        setAll(cookies) {
+          cookies.forEach(({ name, value, options }) => {
+            cookieStore.set(name, value, {
+              ...options,
+              sameSite: normalizeSameSite(options.sameSite),
+              path: "/",
+            });
+          });
         },
       },
-    },
+    }
   );
 }
+
+export const getSupabaseServerClient = async (): Promise<SupabaseClient> => {
+  const cookieStore = await cookies();
+
+  return createSupabaseAuthServer({
+    getAll: () =>
+      cookieStore.getAll().map((c) => ({
+        name: c.name,
+        value: c.value,
+      })),
+    set: (name, value, options) => {
+      cookieStore.set({ name, value, ...options });
+    },
+  });
+};

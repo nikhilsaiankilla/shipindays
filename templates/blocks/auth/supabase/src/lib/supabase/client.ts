@@ -1,5 +1,3 @@
-"use client";
-
 // FILE: src/lib/supabase/client.ts
 // ROUTE: not a route — imported by "use client" components ONLY
 // ROLE: creates a browser-side Supabase singleton

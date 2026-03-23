@@ -42,12 +42,26 @@ const EMAIL_PROVIDERS = {
   },
 };
 
+// Add to your CLI constants
+const PAYMENT_PROVIDERS = {
+  stripe: {
+    label: "Stripe",
+    hint: "Subscriptions + One-time payments via Stripe Checkout",
+  },
+  dodopayments: {
+    label: "Dodo Payments",
+    hint: "Merchant of Record — simplifies global tax/compliance",
+  },
+};
+
 const ENV_VARS = {
   base: {
     "# App": [
       "NEXT_PUBLIC_APP_URL=http://localhost:3000",
     ],
   },
+
+  // auth env's 
   auth: {
     supabase: {
       "# Supabase (supabase.com → project → settings → API)": [
@@ -65,12 +79,10 @@ const ENV_VARS = {
         "AUTH_GOOGLE_ID=",
         "AUTH_GOOGLE_SECRET=",
       ],
-      "# OAuth — GitHub (github.com → Settings → Developer settings → OAuth Apps)": [
-        "AUTH_GITHUB_ID=",
-        "AUTH_GITHUB_SECRET=",
-      ],
     },
   },
+
+  // emails env's 
   email: {
     resend: {
       "# Resend (resend.com → API Keys)": [
@@ -83,6 +95,33 @@ const ENV_VARS = {
         "MAILGUN_DOMAIN=",
       ],
     },
+
+    // payments env's 
+    payments: {
+      stripe: {
+        "# Stripe (dashboard.stripe.com → Developers → API keys)": [
+          "STRIPE_SECRET_KEY=",
+          "STRIPE_WEBHOOK_SECRET=",
+          "NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=",
+        ],
+        "# Stripe Pricing (Create products in Stripe dashboard)": [
+          "NEXT_PUBLIC_STRIPE_PRICE_ID_BASIC=",
+          "NEXT_PUBLIC_STRIPE_PRICE_ID_PRO=",
+        ],
+      },
+
+      dodopayments: {
+        "# Dodo Payments (app.dodopayments.com → Developers → API Keys)": [
+          "DODO_PAYMENTS_API_KEY=",
+          "DODO_PAYMENTS_WEBHOOK_KEY=",
+        ],
+        "# Dodo Pricing (Create products in Dodo dashboard)": [
+          "NEXT_PUBLIC_DODO_PRICE_ID_BASIC=",
+          "NEXT_PUBLIC_DODO_PRICE_ID_PRO=",
+        ],
+      },
+    },
+
   },
 };
 
@@ -322,7 +361,14 @@ async function main() {
   });
   if (p.isCancel(emailProvider)) { p.cancel("Cancelled."); process.exit(0); }
 
-  const choices = { auth: authProvider, email: emailProvider };
+  const paymentProvider = await p.select({
+    message: "Payment provider",
+    options: Object.entries(PAYMENT_PROVIDERS).map(([value, { label, hint }]) => ({
+      value, label, hint,
+    })),
+  });
+
+  const choices = { auth: authProvider, email: emailProvider, payment: paymentProvider };
 
   // 4. Git + install preferences
   const initGit = await p.confirm({
@@ -360,6 +406,12 @@ async function main() {
   await injectBlock("email", choices.email, targetPath);
   await mergePackageJson(targetPath, "email", choices.email);
   spin.stop(`Email: ${choices.email} ✓`);
+
+  // 7. Inject payment block
+  spin.start(`Injecting payments: ${choices.payments}...`);
+  await injectBlock("payments", choices.payments, targetPath);
+  await mergePackageJson(targetPath, "payments", choices.payments);
+  spin.stop(`Payments: ${choices.payments} ✓`);
 
   // 8. Write .env.example
   spin.start("Writing .env.example...");

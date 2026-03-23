@@ -1,3 +1,5 @@
+"use server"
+
 // FILE: src/lib/auth/index.ts
 // ROUTE: not a route — imported everywhere auth is needed
 // ROLE: Supabase Auth implementation of the auth contract
