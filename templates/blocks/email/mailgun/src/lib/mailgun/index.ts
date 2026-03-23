@@ -1,32 +1,30 @@
 // FILE: src/lib/email/index.ts
 // ROUTE: not a route — imported anywhere that sends email
-// ROLE: Nodemailer provider implementation
-//
-// INJECTED BY CLI when user picks "Nodemailer" as their email provider.
-// Replaces templates/base/src/lib/email/index.ts
+// ROLE: Mailgun provider implementation
 // ─────────────────────────────────────────────────────────────────────────────
+import formData from "form-data";
+import Mailgun from "mailgun.js";
 
-import nodemailer from "nodemailer";
-
-// Nodemailer transport — reads SMTP config from env
-// Works with Gmail, Outlook, Mailgun SMTP, any SMTP server
-const transporter = nodemailer.createTransport({
-    host: process.env.SMTP_HOST,
-    port: Number(process.env.SMTP_PORT ?? 587),
-    secure: process.env.SMTP_SECURE === "true",
-    auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS,
-    },
+const mailgun = new Mailgun(formData);
+const mg = mailgun.client({
+    username: "api",
+    key: process.env.MAILGUN_API_KEY || "",
 });
 
-const FROM = process.env.SMTP_FROM ?? "you@yourdomain.com";
+const DOMAIN = process.env.MAILGUN_DOMAIN || "yourdomain.com";
+const FROM = `You <hello@${DOMAIN}>`;
 
 // ─── sendWelcomeEmail ─────────────────────────────────────────────────────────
-export async function sendWelcomeEmail({ to, name }: { to: string; name: string }) {
-    await transporter.sendMail({
+export async function sendWelcomeEmail({
+    to,
+    name,
+}: {
+    to: string;
+    name: string;
+}) {
+    await mg.messages.create(DOMAIN, {
         from: FROM,
-        to,
+        to: [to],
         subject: "Welcome! 🎉",
         html: `
       <div style="font-family:sans-serif;max-width:560px;margin:0 auto;padding:40px 20px">
@@ -42,10 +40,16 @@ export async function sendWelcomeEmail({ to, name }: { to: string; name: string 
 }
 
 // ─── sendPasswordResetEmail ───────────────────────────────────────────────────
-export async function sendPasswordResetEmail({ to, resetUrl }: { to: string; resetUrl: string }) {
-    await transporter.sendMail({
+export async function sendPasswordResetEmail({
+    to,
+    resetUrl,
+}: {
+    to: string;
+    resetUrl: string;
+}) {
+    await mg.messages.create(DOMAIN, {
         from: FROM,
-        to,
+        to: [to],
         subject: "Reset your password",
         html: `
       <div style="font-family:sans-serif;max-width:560px;margin:0 auto;padding:40px 20px">

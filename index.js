@@ -36,9 +36,9 @@ const EMAIL_PROVIDERS = {
     label: "Resend",
     hint: "resend.com — best DX, generous free tier",
   },
-  nodemailer: {
-    label: "Nodemailer",
-    hint: "SMTP — works with Gmail, Outlook, any mail server",
+  mailgun: {
+    label: "Mailgun",
+    hint: "mailgun.com — powerful API, great for scaling",
   },
 };
 
@@ -77,14 +77,10 @@ const ENV_VARS = {
         "RESEND_API_KEY=",
       ],
     },
-    nodemailer: {
-      "# SMTP / Nodemailer": [
-        "SMTP_HOST=smtp.gmail.com",
-        "SMTP_PORT=587",
-        "SMTP_SECURE=false",
-        "SMTP_USER=",
-        "SMTP_PASS=",
-        "SMTP_FROM=you@yourdomain.com",
+    mailgun: {
+      "# Mailgun (mailgun.com → Sending → Domains)": [
+        "MAILGUN_API_KEY=",
+        "MAILGUN_DOMAIN=",
       ],
     },
   },
@@ -97,13 +93,19 @@ const ENV_VARS = {
 async function copyDir(src, dest, skipNames = []) {
   await fs.ensureDir(dest);
   const entries = await fs.readdir(src, { withFileTypes: true });
+
   for (const entry of entries) {
     if (skipNames.includes(entry.name)) continue;
+
     const srcPath = path.join(src, entry.name);
     const destPath = path.join(dest, entry.name);
+
     if (entry.isDirectory()) {
+      // Create sub-directory in destination and recurse
+      await fs.ensureDir(destPath);
       await copyDir(srcPath, destPath, skipNames);
     } else {
+      // Copy the file
       await fs.copy(srcPath, destPath, { overwrite: true });
     }
   }
@@ -119,20 +121,26 @@ async function injectBlock(feature, provider, targetPath) {
   const blockSrcDir = path.join(blockRoot, "src");
 
   if (!await fs.pathExists(blockRoot)) {
-    throw new Error(
-      `Block not found: ${blockRoot}\n` +
-      `Make sure templates/blocks/${feature}/${provider}/ exists.`
-    );
+    throw new Error(`Block not found: ${blockRoot}`);
   }
 
-  if (!await fs.pathExists(blockSrcDir)) {
-    throw new Error(
-      `Block src/ folder missing: ${blockSrcDir}\n` +
-      `Structure: templates/blocks/${feature}/${provider}/src/...`
-    );
+  // 1. Copy everything inside block/src/ to target/src/
+  if (await fs.pathExists(blockSrcDir)) {
+    // We skip node_modules and .next if they accidentally exist in the block
+    await copyDir(blockSrcDir, path.join(targetPath, "src"), ["node_modules", ".next"]);
   }
 
-  await copyDir(blockSrcDir, path.join(targetPath, "src"), ["node_modules", ".next"]);
+  // 2. Handle non-src files (like public/ or drizzle/ if the block has them)
+  // Check if there are other folders in the block root that aren't 'src' or 'package.json'
+  const blockEntries = await fs.readdir(blockRoot, { withFileTypes: true });
+  for (const entry of blockEntries) {
+    if (entry.isDirectory() && entry.name !== "src" && entry.name !== "node_modules") {
+      await copyDir(
+        path.join(blockRoot, entry.name),
+        path.join(targetPath, entry.name)
+      );
+    }
+  }
 }
 
 // Reads the block's package.json and merges its deps into the project's package.json.
@@ -147,10 +155,13 @@ async function mergePackageJson(targetPath, feature, provider) {
   const targetPkg = await fs.readJson(targetPkgPath);
   const blockPkg = await fs.readJson(blockPkgPath);
 
+  // Merge dependencies
   targetPkg.dependencies = {
     ...(targetPkg.dependencies ?? {}),
     ...(blockPkg.dependencies ?? {}),
   };
+
+  // Merge devDependencies
   targetPkg.devDependencies = {
     ...(targetPkg.devDependencies ?? {}),
     ...(blockPkg.devDependencies ?? {}),
@@ -377,7 +388,7 @@ async function main() {
       run(`git commit -m "chore: scaffold from shipindays"`, targetPath);
       spin.stop("Git initialised.");
     } catch {
-      spin.stop(chalk.yellow("Git skipped — run manually."));
+      spin.stop(chalk.yellow("Git skipped — please run manually."));
     }
   }
 
