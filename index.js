@@ -244,10 +244,11 @@ function printNextSteps(projectDir, pm, choices) {
   s(`${runCmd} db:push`);
   s(`${runCmd} dev`);
   console.log("");
+  console.log(chalk.dim("  Please give a star to the repo! Thanks"));
   console.log(chalk.dim("  GitHub  → https://github.com/nikhilsaiankilla/shipindays"));
   console.log(chalk.dim("  Twitter → https://x.com/itzznikhilsai"));
   console.log("");
-  console.log(chalk.green("  ⚡ Now go build what only you can build.\n"));
+  console.log(chalk.green("  Now go build what only you can build.\n"));
 }
 
 async function main() {

@@ -1,10 +1,10 @@
 {
-  "name": "@shipindays/shipindays",
+  "name": "create-shipindays-app",
   "version": "0.1.11",
-  "description": "Scaffold a production ready Next.js SaaS in seconds. Pick your stack, get auth + payments + email wired up.",
+  "description": "Open source CLI to scaffold a Next.js SaaS. Pick your auth, email, and payments wired up and ready to ship.",
   "type": "module",
   "bin": {
-    "create-shipindays": "./index.js"
+    "create-shipindays-app": "./index.js"
   },
   "files": [
     "index.js",
