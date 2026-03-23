@@ -18,30 +18,44 @@ const TEMPLATES_DIR = path.join(__dirname, "templates");
 const BASE_DIR = path.join(TEMPLATES_DIR, "base");
 const BLOCKS_DIR = path.join(TEMPLATES_DIR, "blocks");
 
-function printBanner() {
-  console.log("\n");
-  console.log(chalk.green("  ⚡ shipindays"));
-  console.log(chalk.dim("  Ship your SaaS in days, not months."));
-  console.log(chalk.dim("  https://shipindays.nikhilsai.com\n"));
+// ── DEBUG: Path resolution ─────────────────────────────────────────────────
+console.log(chalk.yellow("\n[DEBUG] import.meta.url:"), import.meta.url);
+console.log(chalk.yellow("[DEBUG] __dirname:"), __dirname);
+console.log(chalk.yellow("[DEBUG] TEMPLATES_DIR:"), TEMPLATES_DIR);
+console.log(chalk.yellow("[DEBUG] BASE_DIR:"), BASE_DIR);
+console.log(chalk.yellow("[DEBUG] BLOCKS_DIR:"), BLOCKS_DIR);
+console.log(chalk.yellow("[DEBUG] TEMPLATES_DIR exists:"), await fs.pathExists(TEMPLATES_DIR));
+console.log(chalk.yellow("[DEBUG] BASE_DIR exists:"), await fs.pathExists(BASE_DIR));
+console.log(chalk.yellow("[DEBUG] BLOCKS_DIR exists:"), await fs.pathExists(BLOCKS_DIR));
+
+if (await fs.pathExists(TEMPLATES_DIR)) {
+  const templatesContents = await fs.readdir(TEMPLATES_DIR);
+  console.log(chalk.yellow("[DEBUG] templates/ contents:"), templatesContents);
+} else {
+  console.log(chalk.red("[DEBUG] templates/ folder NOT FOUND — this is the bug"));
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// BLOCK REGISTRY
-//
-// HOW TO ADD A NEW PROVIDER (e.g. Postmark for email):
-//   1. Create folder:  templates/blocks/email/postmark/src/lib/email/index.ts
-//   2. Match the exact same exported function names as other email providers
-//   3. Add package.json at templates/blocks/email/postmark/package.json
-//   4. Add entry to EMAIL_PROVIDERS below
-//   5. Add env vars to ENV_VARS.email below
-//
-// HOW TO ADD A NEW FEATURE (e.g. payments):
-//   1. Create folders:  templates/blocks/payments/stripe/src/lib/payments/index.ts
-//   2. Add a PAYMENT_PROVIDERS object below (same shape)
-//   3. Add a p.select() prompt in main()
-//   4. Add injectBlock + mergePackageJson calls in the scaffold section
-//   5. Add env vars to ENV_VARS below
-// ─────────────────────────────────────────────────────────────────────────────
+if (await fs.pathExists(BASE_DIR)) {
+  const baseContents = await fs.readdir(BASE_DIR);
+  console.log(chalk.yellow("[DEBUG] templates/base/ contents:"), baseContents);
+} else {
+  console.log(chalk.red("[DEBUG] templates/base/ NOT FOUND"));
+}
+
+if (await fs.pathExists(BLOCKS_DIR)) {
+  const blocksContents = await fs.readdir(BLOCKS_DIR);
+  console.log(chalk.yellow("[DEBUG] templates/blocks/ contents:"), blocksContents);
+} else {
+  console.log(chalk.red("[DEBUG] templates/blocks/ NOT FOUND"));
+}
+// ──────────────────────────────────────────────────────────────────────────
+
+function printBanner() {
+  console.log("\n");
+  console.log(chalk.green(" shipindays"));
+  console.log(chalk.dim("  Ship your SaaS in days, not months."));
+  console.log(chalk.dim("  https://shipindays.nikhilsai.in\n"));
+}
 
 const AUTH_PROVIDERS = {
   supabase: {
@@ -64,11 +78,6 @@ const EMAIL_PROVIDERS = {
     hint: "SMTP — works with Gmail, Outlook, any mail server",
   },
 };
-
-// ─────────────────────────────────────────────────────────────────────────────
-// ENV VARS
-// Add a new key here whenever you add a new provider.
-// ─────────────────────────────────────────────────────────────────────────────
 
 const ENV_VARS = {
   base: {
@@ -120,43 +129,21 @@ const ENV_VARS = {
   },
 };
 
-// ─────────────────────────────────────────────────────────────────────────────
-// BLOCK INJECTOR
-//
-// EVERY block must follow this structure — no exceptions:
-//
-//   templates/blocks/<feature>/<provider>/
-//     package.json        ← extra deps only (read by mergePackageJson, NOT copied)
-//     src/                ← everything inside here gets copied into project/src/
-//       lib/
-//         <feature>/
-//           index.ts      ← replaces base placeholder at same path
-//       ...any other files the provider needs (middleware, api routes, etc.)
-//
-// HOW COPYING WORKS:
-//   block/src/ is copied ON TOP of project/src/
-//   overwrite: true → files at matching paths replace base placeholders
-//   new files (e.g. [...nextauth]/route.ts) get created since they don't exist in base
-//
-// EXAMPLE — Supabase block:
-//   block/src/lib/auth/index.ts         → project/src/lib/auth/index.ts      (overwrites placeholder)
-//   block/src/lib/supabase/server.ts    → project/src/lib/supabase/server.ts (new file)
-//   block/src/lib/supabase/client.ts    → project/src/lib/supabase/client.ts (new file)
-//   block/src/middleware.ts             → project/src/middleware.ts           (overwrites placeholder)
-//   block/src/app/api/auth/login/...    → project/src/app/api/auth/login/...  (new file)
-//
-// EXAMPLE — NextAuth block (has one extra file Supabase doesn't):
-//   block/src/lib/auth/index.ts                      → project/src/lib/auth/index.ts
-//   block/src/middleware.ts                          → project/src/middleware.ts
-//   block/src/app/layout.tsx                         → project/src/app/layout.tsx  (overwrites base layout)
-//   block/src/app/api/auth/[...nextauth]/route.ts    → project/src/app/api/auth/[...nextauth]/route.ts (NEW — only nextauth)
-//   block/src/types/next-auth.d.ts                   → project/src/types/next-auth.d.ts (NEW)
-// ─────────────────────────────────────────────────────────────────────────────
 async function injectBlock(feature, provider, targetPath) {
   const blockRoot = path.join(BLOCKS_DIR, feature, provider);
   const blockSrcDir = path.join(blockRoot, "src");
 
-  // Check block folder exists
+  // ── DEBUG ──────────────────────────────────────────────────────────────
+  console.log(chalk.yellow(`\n[DEBUG] injectBlock(${feature}, ${provider})`));
+  console.log(chalk.yellow("[DEBUG] blockRoot:"), blockRoot);
+  console.log(chalk.yellow("[DEBUG] blockRoot exists:"), await fs.pathExists(blockRoot));
+  console.log(chalk.yellow("[DEBUG] blockSrcDir:"), blockSrcDir);
+  console.log(chalk.yellow("[DEBUG] blockSrcDir exists:"), await fs.pathExists(blockSrcDir));
+  if (await fs.pathExists(blockRoot)) {
+    console.log(chalk.yellow("[DEBUG] blockRoot contents:"), await fs.readdir(blockRoot));
+  }
+  // ──────────────────────────────────────────────────────────────────────
+
   if (!await fs.pathExists(blockRoot)) {
     throw new Error(
       `Block not found: ${blockRoot}\n` +
@@ -164,7 +151,6 @@ async function injectBlock(feature, provider, targetPath) {
     );
   }
 
-  // Check src/ folder exists inside block
   if (!await fs.pathExists(blockSrcDir)) {
     throw new Error(
       `Block src/ folder missing: ${blockSrcDir}\n` +
@@ -173,27 +159,32 @@ async function injectBlock(feature, provider, targetPath) {
     );
   }
 
-  // Copy entire block src/ into project src/
-  // - Files matching base paths → overwrite placeholders
-  // - New files → created fresh in the project
   await fs.copy(blockSrcDir, path.join(targetPath, "src"), {
     overwrite: true,
     filter: (src) =>
       !src.includes("node_modules") &&
       !src.includes(".next"),
   });
+
+  // ── DEBUG: verify copy ─────────────────────────────────────────────────
+  const copiedSrc = path.join(targetPath, "src");
+  const copiedExists = await fs.pathExists(copiedSrc);
+  console.log(chalk.yellow(`[DEBUG] src/ exists in target after injectBlock:`), copiedExists);
+  if (copiedExists) {
+    console.log(chalk.yellow("[DEBUG] src/ contents:"), await fs.readdir(copiedSrc));
+  }
+  // ──────────────────────────────────────────────────────────────────────
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// PACKAGE.JSON MERGER
-//
-// Reads block/package.json and merges its deps into project/package.json.
-// This is separate from injectBlock so the block's package.json is never
-// copied as a file into the project — it's only read for merging.
-// ─────────────────────────────────────────────────────────────────────────────
 async function mergePackageJson(targetPath, feature, provider) {
   const blockPkgPath = path.join(BLOCKS_DIR, feature, provider, "package.json");
   const targetPkgPath = path.join(targetPath, "package.json");
+
+  // ── DEBUG ──────────────────────────────────────────────────────────────
+  console.log(chalk.yellow(`\n[DEBUG] mergePackageJson(${feature}, ${provider})`));
+  console.log(chalk.yellow("[DEBUG] blockPkgPath exists:"), await fs.pathExists(blockPkgPath));
+  console.log(chalk.yellow("[DEBUG] targetPkgPath exists:"), await fs.pathExists(targetPkgPath));
+  // ──────────────────────────────────────────────────────────────────────
 
   if (!await fs.pathExists(blockPkgPath)) return;
   if (!await fs.pathExists(targetPkgPath)) return;
@@ -213,9 +204,6 @@ async function mergePackageJson(targetPath, feature, provider) {
   await fs.writeJson(targetPkgPath, targetPkg, { spaces: 2 });
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// ENV FILE BUILDER
-// ─────────────────────────────────────────────────────────────────────────────
 function buildEnvExample(choices) {
   let out = [
     "# ─────────────────────────────────────────────────────────────────────────",
@@ -241,9 +229,6 @@ function buildEnvExample(choices) {
   return out.trimEnd() + "\n";
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// HELPERS
-// ─────────────────────────────────────────────────────────────────────────────
 function isValidName(n) { return /^[a-zA-Z0-9-_]+$/.test(n); }
 
 function toSlug(s) {
@@ -312,9 +297,6 @@ function printNextSteps(projectDir, pm, choices) {
   console.log(chalk.green("  ⚡ Now go build what only you can build.\n"));
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// MAIN
-// ─────────────────────────────────────────────────────────────────────────────
 async function main() {
   printBanner();
   p.intro(chalk.bgGreen(chalk.black(" shipindays ")));
@@ -345,6 +327,12 @@ async function main() {
   const projectName = isCurrentDir
     ? path.basename(process.cwd())
     : toSlug(path.basename(projectDir.replace(/^\.\//, "")));
+
+  // ── DEBUG ──────────────────────────────────────────────────────────────
+  console.log(chalk.yellow("\n[DEBUG] projectDir:"), projectDir);
+  console.log(chalk.yellow("[DEBUG] targetPath:"), targetPath);
+  console.log(chalk.yellow("[DEBUG] projectName:"), projectName);
+  // ──────────────────────────────────────────────────────────────────────
 
   if (!isCurrentDir && await fs.pathExists(targetPath)) {
     const files = (await fs.readdir(targetPath)).filter(f => f !== ".git");
@@ -398,17 +386,34 @@ async function main() {
 
   // ── 5. Copy base template ──────────────────────────────────────────────────
   spin.start("Copying base template...");
+
   if (!await fs.pathExists(BASE_DIR)) {
     spin.stop(chalk.red(`Base template not found: ${BASE_DIR}`));
     process.exit(1);
   }
+
+  // ── DEBUG: BASE_DIR contents before copy ───────────────────────────────
+  const baseFiles = await fs.readdir(BASE_DIR);
+  console.log(chalk.yellow("\n[DEBUG] BASE_DIR contents before copy:"), baseFiles);
+  // ──────────────────────────────────────────────────────────────────────
+
   await fs.copy(BASE_DIR, targetPath, {
     overwrite: true,
-    filter: (src) =>
-      !src.includes("node_modules") &&
-      !src.includes(".next") &&
-      !src.includes(".turbo"),
+    filter: (src) => {
+      const allowed =
+        !src.includes("node_modules") &&
+        !src.includes(".next") &&
+        !src.includes(".turbo");
+      console.log(chalk.yellow(`[DEBUG] filter ${allowed ? "COPY" : "SKIP"}:`), src);
+      return allowed;
+    },
   });
+
+  // ── DEBUG: targetPath contents after copy ──────────────────────────────
+  const afterCopy = await fs.readdir(targetPath);
+  console.log(chalk.yellow("[DEBUG] targetPath contents after base copy:"), afterCopy);
+  // ──────────────────────────────────────────────────────────────────────
+
   spin.stop("Base template copied.");
 
   // ── 6. Inject auth block ───────────────────────────────────────────────────
@@ -422,12 +427,6 @@ async function main() {
   await injectBlock("email", choices.email, targetPath);
   await mergePackageJson(targetPath, "email", choices.email);
   spin.stop(`Email: ${choices.email} ✓`);
-
-  // ── FUTURE: payments ───────────────────────────────────────────────────────
-  // spin.start(`Injecting payments: ${choices.payments}...`);
-  // await injectBlock("payments", choices.payments, targetPath);
-  // await mergePackageJson(targetPath, "payments", choices.payments);
-  // spin.stop(`Payments: ${choices.payments} ✓`);
 
   // ── 8. Write .env.example ──────────────────────────────────────────────────
   spin.start("Writing .env.example...");
@@ -443,6 +442,12 @@ async function main() {
   // ── 10. Update package.json name ──────────────────────────────────────────
   spin.start("Configuring package.json...");
   const pkgPath = path.join(targetPath, "package.json");
+
+  // ── DEBUG ──────────────────────────────────────────────────────────────
+  console.log(chalk.yellow("\n[DEBUG] package.json path:"), pkgPath);
+  console.log(chalk.yellow("[DEBUG] package.json exists:"), await fs.pathExists(pkgPath));
+  // ──────────────────────────────────────────────────────────────────────
+
   if (await fs.pathExists(pkgPath)) {
     const pkg = await fs.readJson(pkgPath);
     pkg.name = projectName;
