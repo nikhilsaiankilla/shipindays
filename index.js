@@ -22,7 +22,7 @@ function printBanner() {
   console.log("\n");
   console.log(chalk.green("  ⚡ shipindays"));
   console.log(chalk.dim("  Ship your SaaS in days, not months."));
-  console.log(chalk.dim("  https://shipindays.nikhilsai.com\n"));
+  console.log(chalk.dim("  https://shipindays.nikhilsai.in\n"));
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -178,9 +178,13 @@ async function injectBlock(feature, provider, targetPath) {
   // - New files → created fresh in the project
   await fs.copy(blockSrcDir, path.join(targetPath, "src"), {
     overwrite: true,
-    filter: (src) =>
-      !src.includes("node_modules") &&
-      !src.includes(".next"),
+    filter: (src) => {
+      const normalized = src.replace(/\\/g, "/");
+      return (
+        !normalized.includes("node_modules") &&
+        !normalized.includes(".next")
+      );
+    },
   });
 }
 
@@ -409,11 +413,20 @@ async function main() {
 
   await fs.copy(BASE_DIR, targetPath, {
     overwrite: true,
-    filter: (src) =>
-      !src.includes("node_modules") &&
-      !src.includes(".next") &&
-      !src.includes(".turbo"),
+    filter: (src) => {
+      const normalized = src.replace(/\\/g, "/");
+      const allowed =
+        !normalized.includes("node_modules") &&
+        !normalized.includes(".next") &&
+        !normalized.includes(".turbo");
+      console.log(chalk.yellow(`[DEBUG] filter ${allowed ? "COPY  " : "SKIP  "} raw="${src}" normalized="${normalized}"`));
+      return allowed;
+    },
   });
+
+  // verify what landed in targetPath
+  const afterCopy = await fs.readdir(targetPath).catch(() => []);
+  console.log(chalk.yellow("[DEBUG] targetPath after copy:"), afterCopy);
 
   spin.stop("Base template copied.");
 
