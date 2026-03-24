@@ -28,6 +28,7 @@ function printBanner() {
   console.log(chalk.dim("  https://shipindays.nikhilsai.in\n"));
 }
 
+// auth providers 
 const AUTH_PROVIDERS = {
   supabase: {
     label: "Supabase Auth",
@@ -39,6 +40,7 @@ const AUTH_PROVIDERS = {
   },
 };
 
+// email provider 
 const EMAIL_PROVIDERS = {
   resend: {
     label: "Resend",
