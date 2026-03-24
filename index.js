@@ -392,7 +392,7 @@ async function main() {
 
   // 6. Inject Blocks
   // The injectBlock function now handles the internal recursion correctly.
-  const features = ["auth", "email", "payment"];
+  const features = ["auth", "email", "payments"];
   for (const feature of features) {
     const provider = choices[feature];
     if (provider) {
