@@ -367,7 +367,7 @@ async function main() {
     })),
   });
 
-  const choices = { auth: authProvider, email: emailProvider, payment: paymentProvider };
+  const choices = { auth: authProvider, email: emailProvider, payments: paymentProvider };
 
   // 4. Git + install preferences
   const initGit = await p.confirm({
