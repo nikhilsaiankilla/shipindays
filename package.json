@@ -1,6 +1,6 @@
 {
   "name": "@shipindays/shipindays",
-  "version": "0.1.17",
+  "version": "0.1.18",
   "description": "Open source CLI to scaffold a Next.js SaaS. Pick your auth, email, and payments wired up and ready to ship.",
   "type": "module",
   "bin": {
