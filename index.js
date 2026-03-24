@@ -65,8 +65,12 @@ const PAYMENT_PROVIDERS = {
 // DATABASE providers constants
 const DATABASE_PROVIDERS = {
   drizzle: {
-    label: "Drizzle ORM",
-    hint: "PostgreSQL + TypeScript-first — lightweight & fast",
+    label: "Drizzle ORM + Supabase PostgreSQL",
+    hint: "Lightweight SQL-first ORM using Supabase Postgres",
+  },
+  prisma: {
+    label: "Prisma ORM + PostgreSQL",
+    hint: "Type-safe ORM with migrations & powerful client",
   },
 };
 
@@ -79,6 +83,12 @@ const ENV_VARS = {
   database: {
     drizzle: {
       "# Supabase database url! go to supabase -> connect -> transaction pooler": [
+        "DATABASE_URL=",
+      ],
+    },  
+
+    prisma: {
+      "# PostgreSQL connection (Supabase or any provider)": [
         "DATABASE_URL=",
       ],
     },
@@ -137,6 +147,13 @@ const ENV_VARS = {
       ],
     },
   },
+};
+
+// block mapping
+// variable name : folder name 
+const DATABASE_BLOCK_MAP = {
+  drizzle: "drizzle-supabase",
+  prisma: "prisma-supabase",
 };
 
 /**
@@ -421,14 +438,20 @@ async function main() {
   // 6. Inject Blocks
   // The injectBlock function now handles the internal recursion correctly.
   const features = ["database", "auth", "email", "payments"];
+  
   for (const feature of features) {
-    const provider = choices[feature];
-    if (provider) {
-      spin.start(`Injecting ${feature}: ${provider}...`);
-      await injectBlock(feature, provider, targetPath);
-      await mergePackageJson(targetPath, feature, provider);
-      spin.stop(`${feature} injected ✓`);
+    let provider = choices[feature];
+    if (!provider) continue;
+  
+    // map database providers to actual folder names
+    if (feature === "database") {
+      provider = DATABASE_BLOCK_MAP[provider];
     }
+  
+    spin.start(`Injecting ${feature}: ${provider}...`);
+    await injectBlock(feature, provider, targetPath);
+    await mergePackageJson(targetPath, feature, provider);
+    spin.stop(`${feature} injected ✓`);
   }
 
   // 8. Write .env.example

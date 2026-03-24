@@ -14,48 +14,51 @@
 //
 // TODO: replace the DB check with your actual database query
 // ─────────────────────────────────────────────────────────────────────────────
-
 import { NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { auth } from "@/src/lib/auth";
+import { getUser, createUser, updateUserLogin } from "@/src/db/db-helpers";
 
 export async function GET() {
     const appUrl = process.env.NEXTAUTH_URL ?? "http://localhost:3000";
+
     const session = await auth();
 
     if (!session?.user) {
         return NextResponse.redirect(`${appUrl}/login?error=no_session`);
     }
 
-    // ── TODO: Check if user exists in your database ───────────────────────────
-    // Replace this with your actual DB query.
-    //
-    // Example with Mongoose:
-    //   import { connectDB } from "@/lib/db";
-    //   import User from "@/lib/db/models/User";
-    //   await connectDB();
-    //   const existing = await User.findOne({ email: session.user.email });
-    //   if (!existing) {
-    //     await User.create({
-    //       email: session.user.email,
-    //       name:  session.user.name,
-    //       image: session.user.image,
-    //     });
-    //     return NextResponse.redirect(`${appUrl}/onboarding`);
-    //   }
-    //   return NextResponse.redirect(`${appUrl}/dashboard`);
-    //
-    // Example with Drizzle:
-    //   import { db } from "@/lib/db";
-    //   import { users } from "@/lib/db/schema";
-    //   import { eq } from "drizzle-orm";
-    //   const [existing] = await db.select().from(users).where(eq(users.email, session.user.email!));
-    //   if (!existing) {
-    //     await db.insert(users).values({ email: session.user.email!, name: session.user.name });
-    //     return NextResponse.redirect(`${appUrl}/onboarding`);
-    //   }
-    //   return NextResponse.redirect(`${appUrl}/dashboard`);
-    // ─────────────────────────────────────────────────────────────────────────
+    const user = session.user;
 
-    // Default: send everyone to dashboard
+    // Decide your authId source (IMPORTANT)
+    // NextAuth doesn't always include id by default
+    const authId =
+        // @ts-ignore (depends on your NextAuth config)
+        user.id || user.email;
+
+    if (!authId || !user.email) {
+        return NextResponse.redirect(`${appUrl}/login?error=invalid_user`);
+    }
+
+    // Check if user exists
+    const existingUser = await getUser({
+        field: "email",
+        value: user?.email,
+    });
+
+    // Create user if not exists
+    if (!existingUser) {
+        await createUser({
+            email: user.email,
+            authId,
+            name: user.name ?? undefined,
+            image: user.image ?? undefined,
+            lastLoginAt: new Date(),
+        });
+
+        return NextResponse.redirect(`${appUrl}/onboarding`);
+    }else{
+        await updateUserLogin({ authId, lastLoginAt: new Date() });
+    }
+
     return NextResponse.redirect(`${appUrl}/dashboard`);
 }

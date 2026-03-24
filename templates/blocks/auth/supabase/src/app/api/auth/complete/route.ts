@@ -13,6 +13,7 @@
 
 import { NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/src/lib/supabase/server";
+import { getUser, createUser, updateUserLogin } from "@/src/db/db-helpers";
 
 export async function GET() {
     const supabase = await createSupabaseServerClient();
@@ -25,33 +26,29 @@ export async function GET() {
         return NextResponse.redirect(`${appUrl}/login?error=no_session`);
     }
 
-    // ── TODO: Check if user exists in your database ───────────────────────────
-    // Replace this with your actual DB query.
-    //
-    // Example with Drizzle + Supabase Postgres:
-    //   import { db } from "@/lib/db";
-    //   import { users } from "@/lib/db/schema";
-    //   import { eq } from "drizzle-orm";
-    //
-    //   const [existingUser] = await db
-    //     .select()
-    //     .from(users)
-    //     .where(eq(users.id, user.id));
-    //
-    //   if (!existingUser) {
-    //     // New user — save to DB first
-    //     await db.insert(users).values({
-    //       id:        user.id,
-    //       email:     user.email!,
-    //       name:      user.user_metadata?.full_name ?? null,
-    //       avatarUrl: user.user_metadata?.avatar_url ?? null,
-    //     });
-    //     return NextResponse.redirect(`${appUrl}/onboarding`);
-    //   }
-    //
-    //   return NextResponse.redirect(`${appUrl}/dashboard`);
-    // ─────────────────────────────────────────────────────────────────────────
+    // Check if user exists in YOUR DB
+    const existingUser = await getUser({
+        field: "authId",
+        value: user?.id,
+    });
 
+    // If new user → create
+    if (!existingUser) {
+        await createUser({
+            email: user.email!,
+            authId: user.id,
+            name: user.user_metadata?.full_name ?? undefined,
+            image: user.user_metadata?.avatar_url ?? undefined,
+            lastLoginAt: new Date(),
+        });
+
+        return NextResponse.redirect(`${appUrl}/onboarding`);
+    } else {
+        await updateUserLogin({
+            authId,
+            lastLoginAt: new Date(),
+        });
+    }
     // Default: send everyone to dashboard
     // Replace with the DB check above once you have a users table
     return NextResponse.redirect(`${appUrl}/dashboard`);
