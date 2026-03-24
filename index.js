@@ -125,10 +125,12 @@ const ENV_VARS = {
   },
 };
 
-// Recursively copy a directory, skipping unwanted folders.
-// We do this manually instead of fs.copy(filter) because fs-extra's filter
-// callback skips the root directory itself on some platforms when the
-// target doesn't exist yet, resulting in nothing being copied.
+/**
+ * RECURSIVE DIRECTORY MERGE
+ * * This function walks through the source directory and copies files to the destination.
+ * If a directory exists in both places, it dives deeper to merge contents rather 
+ * than replacing the entire folder.
+ */
 async function copyDir(src, dest, skipNames = []) {
   await fs.ensureDir(dest);
   const entries = await fs.readdir(src, { withFileTypes: true });
@@ -140,71 +142,68 @@ async function copyDir(src, dest, skipNames = []) {
     const destPath = path.join(dest, entry.name);
 
     if (entry.isDirectory()) {
-      // Create sub-directory in destination and recurse
-      await fs.ensureDir(destPath);
+      // If it's a directory, recurse into it to ensure we don't 
+      // overwrite existing folders in the target, but merge into them.
       await copyDir(srcPath, destPath, skipNames);
     } else {
-      // Copy the file
+      // If it's a file, copy/overwrite it into the target.
       await fs.copy(srcPath, destPath, { overwrite: true });
     }
   }
 }
 
-// Each block lives at templates/blocks/<feature>/<provider>/
-// Its src/ folder is copied on top of the project's src/.
-// To add a new provider: create the folder, match exported function names,
-// add a package.json with extra deps, register it in the provider map above,
-// and add env vars below.
+/**
+ * BLOCK INJECTION LOGIC
+ * * Improved to handle deep nesting. It takes everything inside the provider folder 
+ * (except package.json and node_modules) and merges it into the project root.
+ */
 async function injectBlock(feature, provider, targetPath) {
   const blockRoot = path.join(BLOCKS_DIR, feature, provider);
-  const blockSrcDir = path.join(blockRoot, "src");
 
   if (!await fs.pathExists(blockRoot)) {
-    throw new Error(`Block not found: ${blockRoot}`);
+    throw new Error(`Block folder missing: ${blockRoot}`);
   }
 
-  // 1. Copy everything inside block/src/ to target/src/
-  if (await fs.pathExists(blockSrcDir)) {
-    // We skip node_modules and .next if they accidentally exist in the block
-    await copyDir(blockSrcDir, path.join(targetPath, "src"), ["node_modules", ".next"]);
-  }
-
-  // 2. Handle non-src files (like public/ or drizzle/ if the block has them)
-  // Check if there are other folders in the block root that aren't 'src' or 'package.json'
   const blockEntries = await fs.readdir(blockRoot, { withFileTypes: true });
+
   for (const entry of blockEntries) {
-    if (entry.isDirectory() && entry.name !== "src" && entry.name !== "node_modules") {
-      await copyDir(
-        path.join(blockRoot, entry.name),
-        path.join(targetPath, entry.name)
-      );
+    // 1. Skip package.json (handled by mergePackageJson)
+    // 2. Skip node_modules or .next if they exist in the template
+    if (
+      entry.name === "package.json" ||
+      entry.name === "node_modules" ||
+      entry.name === ".next"
+    ) continue;
+
+    const srcPath = path.join(blockRoot, entry.name);
+    const destPath = path.join(targetPath, entry.name);
+
+    if (entry.isDirectory()) {
+      // This will now correctly merge 'src', 'public', 'hooks', etc.
+      // because copyDir is recursive.
+      await copyDir(srcPath, destPath, ["node_modules", ".next"]);
+    } else {
+      await fs.copy(srcPath, destPath, { overwrite: true });
     }
   }
 }
 
-// Reads the block's package.json and merges its deps into the project's package.json.
-// The block's package.json is never copied as a file — only read for merging.
+/**
+ * PACKAGE.JSON MERGER
+ * * Deep merges dependencies and devDependencies so the final project
+ * has all required libraries from every selected block.
+ */
 async function mergePackageJson(targetPath, feature, provider) {
   const blockPkgPath = path.join(BLOCKS_DIR, feature, provider, "package.json");
   const targetPkgPath = path.join(targetPath, "package.json");
 
-  if (!await fs.pathExists(blockPkgPath)) return;
-  if (!await fs.pathExists(targetPkgPath)) return;
+  if (!await fs.pathExists(blockPkgPath) || !await fs.pathExists(targetPkgPath)) return;
 
   const targetPkg = await fs.readJson(targetPkgPath);
   const blockPkg = await fs.readJson(blockPkgPath);
 
-  // Merge dependencies
-  targetPkg.dependencies = {
-    ...(targetPkg.dependencies ?? {}),
-    ...(blockPkg.dependencies ?? {}),
-  };
-
-  // Merge devDependencies
-  targetPkg.devDependencies = {
-    ...(targetPkg.devDependencies ?? {}),
-    ...(blockPkg.devDependencies ?? {}),
-  };
+  targetPkg.dependencies = { ...(targetPkg.dependencies ?? {}), ...(blockPkg.dependencies ?? {}) };
+  targetPkg.devDependencies = { ...(targetPkg.devDependencies ?? {}), ...(blockPkg.devDependencies ?? {}) };
 
   await fs.writeJson(targetPkgPath, targetPkg, { spaces: 2 });
 }
@@ -388,30 +387,21 @@ async function main() {
 
   // 5. Copy base template
   spin.start("Copying base template...");
-  if (!await fs.pathExists(BASE_DIR)) {
-    spin.stop(chalk.red(`Base template not found: ${BASE_DIR}`));
-    process.exit(1);
-  }
   await copyDir(BASE_DIR, targetPath, ["node_modules", ".next", ".turbo"]);
   spin.stop("Base template copied.");
 
-  // 6. Inject auth block
-  spin.start(`Injecting auth: ${choices.auth}...`);
-  await injectBlock("auth", choices.auth, targetPath);
-  await mergePackageJson(targetPath, "auth", choices.auth);
-  spin.stop(`Auth: ${choices.auth} ✓`);
-
-  // 7. Inject email block
-  spin.start(`Injecting email: ${choices.email}...`);
-  await injectBlock("email", choices.email, targetPath);
-  await mergePackageJson(targetPath, "email", choices.email);
-  spin.stop(`Email: ${choices.email} ✓`);
-
-  // 7. Inject payment block
-  spin.start(`Injecting payments: ${choices.payments}...`);
-  await injectBlock("payments", choices.payments, targetPath);
-  await mergePackageJson(targetPath, "payments", choices.payments);
-  spin.stop(`Payments: ${choices.payments} ✓`);
+  // 6. Inject Blocks
+  // The injectBlock function now handles the internal recursion correctly.
+  const features = ["auth", "email", "payments"];
+  for (const feature of features) {
+    const provider = choices[feature];
+    if (provider) {
+      spin.start(`Injecting ${feature}: ${provider}...`);
+      await injectBlock(feature, provider, targetPath);
+      await mergePackageJson(targetPath, feature, provider);
+      spin.stop(`${feature} injected ✓`);
+    }
+  }
 
   // 8. Write .env.example
   spin.start("Writing .env.example...");
