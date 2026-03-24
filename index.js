@@ -6,6 +6,8 @@ import fs from "fs-extra";
 import path from "path";
 import { execSync } from "child_process";
 import { fileURLToPath } from "url";
+import figlet from "figlet";
+import gradient from "gradient-string";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -14,8 +16,14 @@ const BASE_DIR = path.join(TEMPLATES_DIR, "base");
 const BLOCKS_DIR = path.join(TEMPLATES_DIR, "blocks");
 
 function printBanner() {
+  const bannerText = figlet.textSync("Ship In Days", {
+    font: "Slant",
+  });
+
   console.log("\n");
-  console.log(chalk.green("  ⚡ shipindays"));
+
+  // This creates a smooth transition from Orange to Purple
+  console.log(gradient(["#FF8C00", "#8A2BE2"])(bannerText));
   console.log(chalk.dim("  Ship your SaaS in days, not months."));
   console.log(chalk.dim("  https://shipindays.nikhilsai.in\n"));
 }
@@ -54,14 +62,28 @@ const PAYMENT_PROVIDERS = {
   },
 };
 
+// DATABASE providers constants
+const DATABASE_PROVIDERS = {
+  drizzle: {
+    label: "Drizzle ORM",
+    hint: "PostgreSQL + TypeScript-first — lightweight & fast",
+  },
+};
+
 const ENV_VARS = {
   base: {
-    "# App": [
-      "NEXT_PUBLIC_APP_URL=http://localhost:3000",
-    ],
+    "# App": ["NEXT_PUBLIC_APP_URL=http://localhost:3000"],
   },
 
-  // auth env's 
+  // 1. Move database to the top level (Fixes the missing Drizzle envs)
+  database: {
+    drizzle: {
+      "# Supabase database url! go to supabase -> connect -> transaction pooler": [
+        "DATABASE_URL=",
+      ],
+    },
+  },
+
   auth: {
     supabase: {
       "# Supabase (supabase.com → project → settings → API)": [
@@ -71,10 +93,7 @@ const ENV_VARS = {
       ],
     },
     nextauth: {
-      "# NextAuth": [
-        "AUTH_SECRET=",
-        "NEXTAUTH_URL=http://localhost:3000",
-      ],
+      "# NextAuth": ["AUTH_SECRET=", "NEXTAUTH_URL=http://localhost:3000"],
       "# OAuth — Google (console.cloud.google.com)": [
         "AUTH_GOOGLE_ID=",
         "AUTH_GOOGLE_SECRET=",
@@ -82,12 +101,9 @@ const ENV_VARS = {
     },
   },
 
-  // emails env's 
   email: {
     resend: {
-      "# Resend (resend.com → API Keys)": [
-        "RESEND_API_KEY=",
-      ],
+      "# Resend (resend.com → API Keys)": ["RESEND_API_KEY="],
     },
     mailgun: {
       "# Mailgun (mailgun.com → Sending → Domains)": [
@@ -95,33 +111,31 @@ const ENV_VARS = {
         "MAILGUN_DOMAIN=",
       ],
     },
+  },
 
-    // payments env's 
-    payments: {
-      stripe: {
-        "# Stripe (dashboard.stripe.com → Developers → API keys)": [
-          "STRIPE_SECRET_KEY=",
-          "STRIPE_WEBHOOK_SECRET=",
-          "NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=",
-        ],
-        "# Stripe Pricing (Create products in Stripe dashboard)": [
-          "NEXT_PUBLIC_STRIPE_PRICE_ID_BASIC=",
-          "NEXT_PUBLIC_STRIPE_PRICE_ID_PRO=",
-        ],
-      },
-
-      dodopayments: {
-        "# Dodo Payments (app.dodopayments.com → Developers → API Keys)": [
-          "DODO_PAYMENTS_API_KEY=",
-          "DODO_PAYMENTS_WEBHOOK_KEY=",
-        ],
-        "# Dodo Pricing (Create products in Dodo dashboard)": [
-          "NEXT_PUBLIC_DODO_PRICE_ID_BASIC=",
-          "NEXT_PUBLIC_DODO_PRICE_ID_PRO=",
-        ],
-      },
+  // 2. Move payments to the top level (Fixes the missing Dodo envs)
+  payments: {
+    stripe: {
+      "# Stripe (dashboard.stripe.com → Developers → API keys)": [
+        "STRIPE_SECRET_KEY=",
+        "STRIPE_WEBHOOK_SECRET=",
+        "NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=",
+      ],
+      "# Stripe Pricing": [
+        "NEXT_PUBLIC_STRIPE_PRICE_ID_BASIC=",
+        "NEXT_PUBLIC_STRIPE_PRICE_ID_PRO=",
+      ],
     },
-
+    dodopayments: {
+      "# Dodo Payments (app.dodopayments.com → Developers → API Keys)": [
+        "DODO_PAYMENTS_API_KEY=",
+        "DODO_PAYMENTS_WEBHOOK_KEY=",
+      ],
+      "# Dodo Pricing": [
+        "NEXT_PUBLIC_DODO_PRICE_ID_BASIC=",
+        "NEXT_PUBLIC_DODO_PRICE_ID_PRO=",
+      ],
+    },
   },
 };
 
@@ -342,7 +356,16 @@ async function main() {
     }
   }
 
-  // 2. Pick auth provider
+  // pick database provider
+  const dbProvider = await p.select({
+    message: "Database Provider",
+    options: Object.entries(DATABASE_PROVIDERS).map(([value, { label, hint }]) => ({
+      value, label, hint,
+    })),
+  })
+  if (p.isCancel(dbProvider)) { p.cancel("Cancelled."); process.exit(0); }
+
+  // Pick auth provider
   const authProvider = await p.select({
     message: "Auth provider",
     options: Object.entries(AUTH_PROVIDERS).map(([value, { label, hint }]) => ({
@@ -367,7 +390,12 @@ async function main() {
     })),
   });
 
-  const choices = { auth: authProvider, email: emailProvider, payments: paymentProvider };
+  const choices = {
+    database: dbProvider,
+    auth: authProvider,
+    email: emailProvider,
+    payments: paymentProvider
+  };
 
   // 4. Git + install preferences
   const initGit = await p.confirm({
@@ -392,7 +420,7 @@ async function main() {
 
   // 6. Inject Blocks
   // The injectBlock function now handles the internal recursion correctly.
-  const features = ["auth", "email", "payments"];
+  const features = ["database", "auth", "email", "payments"];
   for (const feature of features) {
     const provider = choices[feature];
     if (provider) {

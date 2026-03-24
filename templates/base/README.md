@@ -74,7 +74,7 @@ src/
 ├── lib/
 │   ├── auth/index.ts             ← getCurrentUser, requireUser, signOut
 │   └── email/index.ts            ← sendWelcomeEmail, sendPasswordResetEmail
-└── middleware.ts                  ← protects /dashboard routes
+└── proxy.ts                  ← protects /dashboard routes
 ```
 
 ---

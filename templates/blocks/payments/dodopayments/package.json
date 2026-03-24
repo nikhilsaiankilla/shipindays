@@ -1,5 +1,5 @@
 {
     "dependencies": {
-        "dodopayments": "^latest"
+        "@dodopayments/nextjs": "^0.3.4"
     }
 }
