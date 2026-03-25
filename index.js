@@ -1,11 +1,60 @@
 #!/usr/bin/env node
 
 /**
- * SHIP IN DAYS - CLI CORE
- * This CLI uses a "Base + Block" architecture.
- * 1. The Base template is copied first (common UI/Config).
- * 2. Feature Blocks (Auth, DB, etc.) are merged on top.
- * 3. Dependencies are merged into a final package.json.
+ * ╔══════════════════════════════════════════════════════════════════╗
+ * ║                    SHIP IN DAYS - CLI CORE                      ║
+ * ║                                                                  ║
+ * ║  Architecture: Base + Block system                               ║
+ * ║  1. The Base template is copied first (common UI/Config).        ║
+ * ║  2. Feature Blocks (Auth, DB, etc.) are merged on top.           ║
+ * ║  3. Dependencies are merged into a final package.json.           ║
+ * ║                                                                  ║
+ * ║  DEFAULT STACK (pre-selected):                                   ║
+ * ║    Database  → Drizzle ORM + Supabase PostgreSQL                 ║
+ * ║    Auth      → Supabase Auth                                     ║
+ * ║    Email     → Resend                                            ║
+ * ║    Payments  → Dodo Payments                                     ║
+ * ╚══════════════════════════════════════════════════════════════════╝
+ *
+ * ──────────────────────────────────────────────────────────────────
+ * HOW TO ADD A NEW PROVIDER (e.g. a new payment gateway "LemonSqueezy")
+ * ──────────────────────────────────────────────────────────────────
+ *
+ * STEP 1 — Add it to the provider map (e.g. PAYMENT_PROVIDERS below).
+ *           Each entry needs: { label, hint, url }
+ *
+ *   lemonsqueezy: {
+ *     label: "Lemon Squeezy",
+ *     hint:  "Merchant of Record — great for digital products",
+ *     url:   "https://lemonsqueezy.com",
+ *   },
+ *
+ * STEP 2 — Add its required .env variables to ENV_VARS under the
+ *           correct feature key (e.g. ENV_VARS.payments.lemonsqueezy).
+ *
+ *   lemonsqueezy: {
+ *     "# Lemon Squeezy (app.lemonsqueezy.com → Settings → API)": [
+ *       "LEMONSQUEEZY_API_KEY=",
+ *       "LEMONSQUEEZY_WEBHOOK_SECRET=",
+ *       "NEXT_PUBLIC_LEMONSQUEEZY_STORE_ID=",
+ *     ],
+ *   },
+ *
+ * STEP 3 — Create the block folder at:
+ *           templates/blocks/payments/lemonsqueezy/
+ *           Inside it, add the files you want injected into the user's
+ *           project (e.g. src/lib/lemonsqueezy.ts) and a package.json
+ *           with any extra dependencies.
+ *
+ * STEP 4 — If the folder name on disk doesn't match the key you used
+ *           in PAYMENT_PROVIDERS, add a mapping in BLOCK_FOLDER_MAP:
+ *
+ *   payments: {
+ *     ...existing entries...
+ *     lemonsqueezy: "lemonsqueezy",   // key → folder name
+ *   },
+ *
+ * That's it. The CLI will automatically pick it up on the next run.
  */
 
 import * as p from "@clack/prompts";
@@ -17,91 +66,135 @@ import { fileURLToPath } from "url";
 import figlet from "figlet";
 import gradient from "gradient-string";
 
-// Resolve paths for ESM (since __dirname isn't global in ES modules)
+// Path resolution (ESM doesn't expose __dirname globally)
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-
 const TEMPLATES_DIR = path.join(__dirname, "templates");
 const BASE_DIR = path.join(TEMPLATES_DIR, "base");
 const BLOCKS_DIR = path.join(TEMPLATES_DIR, "blocks");
 
-/**
- * STEP 1: DEFINE PROVIDERS
- * To add a new provider, add an object key here with a label and hint.
- */
-// auth providers 
-const AUTH_PROVIDERS = {
-  supabase: {
-    label: "Supabase Auth",
-    hint: "Magic link + OAuth — server.ts + client.ts included",
-  },
-  nextauth: {
-    label: "NextAuth v5",
-    hint: "Credentials + Google + GitHub — self-hostable",
-  },
-};
+// STEP 1 ─ PROVIDER DEFINITIONS
+//
+// Each provider object must have:
+//   label  — shown in the selection list
+//   hint   — shown as a subtitle/description in the list
+//   url    — shown next to the label so users know where to sign up
+//
+// The KEY (e.g. "drizzle", "supabase") is used internally to:
+//   • look up ENV_VARS
+//   • resolve the block folder via BLOCK_FOLDER_MAP
+//   • write "choices" that get passed through the whole pipeline
+//
+// To skip a feature entirely, users can select the "none" option which
+// is injected automatically — you don't need to add it here.
 
-// email provider 
-const EMAIL_PROVIDERS = {
-  resend: {
-    label: "Resend",
-    hint: "resend.com — best DX, generous free tier",
-  },
-  mailgun: {
-    label: "Mailgun",
-    hint: "mailgun.com — powerful API, great for scaling",
-  },
-};
-
-// Add to your CLI constants
-const PAYMENT_PROVIDERS = {
-  stripe: {
-    label: "Stripe",
-    hint: "Subscriptions + One-time payments via Stripe Checkout",
-  },
-  dodopayments: {
-    label: "Dodo Payments",
-    hint: "Merchant of Record — simplifies global tax/compliance",
-  },
-};
-
-// DATABASE providers constants
+/** Database ORM + connection providers */
 const DATABASE_PROVIDERS = {
+  // Add new database providers below this line
   drizzle: {
     label: "Drizzle ORM + Supabase PostgreSQL",
     hint: "Lightweight SQL-first ORM using Supabase Postgres",
+    url: "supabase.com",
   },
   prisma: {
     label: "Prisma ORM + PostgreSQL",
     hint: "Type-safe ORM with migrations & powerful client",
+    url: "prisma.io",
   },
+  // Add new database providers above this line
 };
 
-/**
- * STEP 2: DEFINE ENVIRONMENT VARIABLES
- * Every block must define its required variables here. 
- * These get written to the user's .env.example.
- */
+/** Authentication providers */
+const AUTH_PROVIDERS = {
+  // Add new auth providers below this line
+  supabase: {
+    label: "Supabase Auth",
+    hint: "Magic link + OAuth — server.ts + client.ts included",
+    url: "supabase.com",
+  },
+  nextauth: {
+    label: "NextAuth v5",
+    hint: "Credentials + Google + GitHub — self-hostable",
+    url: "authjs.dev",
+  },
+  // Add new auth providers above this line
+};
+
+/** Transactional email providers */
+const EMAIL_PROVIDERS = {
+  // Add new email providers below this line
+  resend: {
+    label: "Resend",
+    hint: "resend.com — best DX, generous free tier",
+    url: "resend.com",
+  },
+  mailgun: {
+    label: "Mailgun",
+    hint: "mailgun.com — powerful API, great for scaling",
+    url: "mailgun.com",
+  },
+  // Add new email providers above this line
+};
+
+/** Payment providers */
+const PAYMENT_PROVIDERS = {
+  // Add new payment providers below this line
+  dodopayments: {
+    label: "Dodo Payments",
+    hint: "Merchant of Record — simplifies global tax/compliance",
+    url: "dodopayments.com",
+  },
+  stripe: {
+    label: "Stripe",
+    hint: "Subscriptions + One-time payments via Stripe Checkout",
+    url: "stripe.com",
+  },
+  // Add new payment providers above this line
+};
+
+// STEP 2 ─ DEFAULT STACK
+//
+// These values are pre-selected when the user starts the CLI.
+// They match the keys in the provider maps above.
+// Change them here to update the defaults globally.
+const DEFAULTS = {
+  database: "drizzle",
+  auth: "supabase",
+  email: "resend",
+  payments: "dodopayments",
+};
+
+// STEP 3 ─ ENVIRONMENT VARIABLES
+//
+// Every provider must declare its required .env keys here.
+// These are written to .env.example so users know what to fill in.
+//
+// Structure:
+//   ENV_VARS.<feature>.<providerKey> = { "# comment": ["VAR=", ...], ... }
+//
+// The "none" provider never needs an entry here — it's handled automatically.
 const ENV_VARS = {
+  /** Base vars always included regardless of provider choices */
   base: {
     "# App": ["NEXT_PUBLIC_APP_URL=http://localhost:3000"],
   },
 
-  // 1. Move database to the top level (Fixes the missing Drizzle envs)
   database: {
+    // Add env vars for new database providers below
     drizzle: {
-      "# Supabase database url! go to supabase -> connect -> transaction pooler": [
+      "# Supabase database url! go to supabase → connect → transaction pooler": [
         "DATABASE_URL=",
       ],
     },
-
     prisma: {
       "# PostgreSQL connection (Supabase or any provider)": [
         "DATABASE_URL=",
       ],
     },
+    // Add env vars for new database providers above
   },
 
   auth: {
+    // Add env vars for new auth providers below
     supabase: {
       "# Supabase (supabase.com → project → settings → API)": [
         "NEXT_PUBLIC_SUPABASE_URL=",
@@ -110,17 +203,24 @@ const ENV_VARS = {
       ],
     },
     nextauth: {
-      "# NextAuth": ["AUTH_SECRET=", "NEXTAUTH_URL=http://localhost:3000"],
+      "# NextAuth": [
+        "AUTH_SECRET=",
+        "NEXTAUTH_URL=http://localhost:3000",
+      ],
       "# OAuth — Google (console.cloud.google.com)": [
         "AUTH_GOOGLE_ID=",
         "AUTH_GOOGLE_SECRET=",
       ],
     },
+    // Add env vars for new auth providers above
   },
 
   email: {
+    // Add env vars for new email providers below
     resend: {
-      "# Resend (resend.com → API Keys)": ["RESEND_API_KEY="],
+      "# Resend (resend.com → API Keys)": [
+        "RESEND_API_KEY=",
+      ],
     },
     mailgun: {
       "# Mailgun (mailgun.com → Sending → Domains)": [
@@ -128,10 +228,21 @@ const ENV_VARS = {
         "MAILGUN_DOMAIN=",
       ],
     },
+    // Add env vars for new email providers above
   },
 
-  // 2. Move payments to the top level (Fixes the missing Dodo envs)
   payments: {
+    // Add env vars for new payment providers below
+    dodopayments: {
+      "# Dodo Payments (app.dodopayments.com → Developers → API Keys)": [
+        "DODO_PAYMENTS_API_KEY=",
+        "DODO_PAYMENTS_WEBHOOK_KEY=",
+      ],
+      "# Dodo Pricing": [
+        "NEXT_PUBLIC_DODO_PRICE_ID_BASIC=",
+        "NEXT_PUBLIC_DODO_PRICE_ID_PRO=",
+      ],
+    },
     stripe: {
       "# Stripe (dashboard.stripe.com → Developers → API keys)": [
         "STRIPE_SECRET_KEY=",
@@ -143,35 +254,88 @@ const ENV_VARS = {
         "NEXT_PUBLIC_STRIPE_PRICE_ID_PRO=",
       ],
     },
-    dodopayments: {
-      "# Dodo Payments (app.dodopayments.com → Developers → API Keys)": [
-        "DODO_PAYMENTS_API_KEY=",
-        "DODO_PAYMENTS_WEBHOOK_KEY=",
-      ],
-      "# Dodo Pricing": [
-        "NEXT_PUBLIC_DODO_PRICE_ID_BASIC=",
-        "NEXT_PUBLIC_DODO_PRICE_ID_PRO=",
-      ],
-    },
+    // Add env vars for new payment providers above
   },
 };
 
-/**
- * STEP 3: BLOCK FOLDER MAPPING
- * If your folder name in /blocks doesn't match the variable key, map it here.
- */
-const DATABASE_BLOCK_MAP = {
-  drizzle: "drizzle-supabase",
-  prisma: "prisma-supabase",
+// STEP 4 ─ BLOCK FOLDER MAP
+//
+// Maps provider keys → actual folder names inside templates/blocks/<feature>/.
+//
+// You only need an entry here if the folder name differs from the key.
+// E.g. key "drizzle" → folder "drizzle-supabase" needs a mapping.
+//
+// If the key and folder name are identical (e.g. key "stripe" → folder "stripe")
+// you can omit it and the fallback will use the key directly.
+const BLOCK_FOLDER_MAP = {
+  database: {
+    // Add folder name overrides for new database providers below
+    drizzle: "drizzle-supabase",
+    prisma: "prisma-supabase",
+    // Add folder name overrides for new database providers above
+  },
+  auth: {
+    // Add folder name overrides for new auth providers below
+    // (none needed currently — key matches folder)
+    // Add folder name overrides for new auth providers above
+  },
+  email: {
+    // Add folder name overrides for new email providers below
+    // (none needed currently)
+    // Add folder name overrides for new email providers above
+  },
+  payments: {
+    // Add folder name overrides for new payment providers below
+    // (none needed currently — key matches folder)
+    // Add folder name overrides for new payment providers above
+  },
 };
 
-/**
- * RECURSIVE DIRECTORY MERGE (THE CORE ENGINE)
- * This function is "Safe". It won't delete existing files in a folder; 
- * it only adds new files or overwrites existing ones inside those folders.
- */
+// FILES / DIRS TO NEVER COPY from block folders
+const IGNORE_LIST = [
+  "package.json",   // merged separately via mergePackageJson
+  "node_modules",   // should never exist in a block, but guard anyway
+  ".next",          // Next.js build cache
+  ".turbo",         // Turborepo cache
+  ".DS_Store",      // macOS junk
+  "Thumbs.db",      // Windows junk
+  "README.md",      // Block-level docs, not for users
+  ".env",           // Never copy secrets
+  ".env.local",
+  "dist",           // Compiled output
+  ".git",           // Sub-repos
+];
+
+// UTILITY: Build select options from a provider map
+//
+// Injects a "none" option at the end so users can skip optional features.
+// The "none" value is a sentinel — injectBlock and ENV_VARS both check for it
+// and do nothing when selected.
+function buildOptions(providerMap) {
+  const opts = Object.entries(providerMap).map(([value, { label, hint, url }]) => ({
+    value,
+    label: `${label}  ${chalk.dim(url)}`,
+    hint,
+  }));
+
+  // "none" option — skips this feature entirely
+  opts.push({
+    value: "none",
+    label: chalk.dim("None  (skip this feature)"),
+    hint: "No files or env vars will be added for this feature",
+  });
+
+  return opts;
+}
+
+// CORE ENGINE: Recursive directory merge
+//
+// Merges src into dest WITHOUT deleting existing files.
+// Only adds new files or overwrites individual files — never blows away folders.
+//
+// skipNames is propagated at every recursion level so ignored files/folders
+// are consistently excluded no matter how deep they sit.
 async function copyDir(src, dest, skipNames = []) {
-  // Ensure the destination folder exists before we try to put files in it
   await fs.ensureDir(dest);
 
   const entries = await fs.readdir(src, { withFileTypes: true });
@@ -183,104 +347,92 @@ async function copyDir(src, dest, skipNames = []) {
     const destPath = path.join(dest, entry.name);
 
     if (entry.isDirectory()) {
-      // If it's a folder, WE DO NOT USE fs.copy. 
-      // We call copyDir again to go deeper (Recursion).
+      // Recurse — do NOT use fs.copy() here because it replaces the whole
+      // target directory, deleting any files the base already put there.
       await copyDir(srcPath, destPath, skipNames);
     } else {
-      // If it's a file, we overwrite the placeholder with the real block code.
       await fs.copy(srcPath, destPath, { overwrite: true });
     }
   }
 }
 
-/**
- * BLOCK INJECTION LOGIC
- * This is the entry point for adding a feature (like Stripe or Supabase).
- */
+// BLOCK INJECTION
+//
+// Copies all files from templates/blocks/<feature>/<folderName>/ into the
+// user's project, excluding IGNORE_LIST entries at every level.
+//
+// "none" is a no-op — returns immediately without copying anything.
 async function injectBlock(feature, provider, targetPath) {
-  const blockRoot = path.join(BLOCKS_DIR, feature, provider);
+  // "none" means the user explicitly skipped this feature
+  if (!provider || provider === "none") return;
+
+  // Resolve actual folder name (may differ from provider key)
+  const folderName = BLOCK_FOLDER_MAP[feature]?.[provider] ?? provider;
+  const blockRoot = path.join(BLOCKS_DIR, feature, folderName);
 
   if (!(await fs.pathExists(blockRoot))) {
-    throw new Error(`Block folder missing: ${blockRoot}`);
+    throw new Error(
+      `Block folder not found: ${blockRoot}\n` +
+      `Make sure templates/blocks/${feature}/${folderName}/ exists.`
+    );
   }
 
+  // Debug: log what the block folder contains
   const blockEntries = await fs.readdir(blockRoot, { withFileTypes: true });
+  const visibleEntries = blockEntries
+    .filter(e => !IGNORE_LIST.includes(e.name))
+    .map(e => e.name);
 
-  // Define everything we want to ignore from the block folders
-  const IGNORE_LIST = [
-    "package.json",    // Handled by mergePackageJson
-    "node_modules",    // Should never be copied
-    ".next",           // Next.js build cache
-    ".turbo",          // Turborepo cache
-    ".DS_Store",       // macOS junk
-    "Thumbs.db",       // Windows junk
-    "README.md",       // Block-specific instructions
-    ".env",            // Local env files in blocks
-    ".env.local",      // Local env secrets in blocks
-    "dist",            // Compiled files
-    ".git"             // Sub-git repos
-  ];
+  if (visibleEntries.length === 0) {
+    console.warn(chalk.yellow(`  ⚠  Block ${feature}/${folderName} has no files to inject.`));
+    return;
+  }
 
   for (const entry of blockEntries) {
-    // 1. Skip metadata, dependency files, and unwanted cache
     if (IGNORE_LIST.includes(entry.name)) continue;
 
     const srcPath = path.join(blockRoot, entry.name);
     const destPath = path.join(targetPath, entry.name);
 
     if (entry.isDirectory()) {
-      // 2. Recursive merge for directories (src, public, hooks, etc.)
-      // We pass the IGNORE_LIST down to copyDir as well
+      // Use copyDir (recursive merge) — NOT fs.copy — so we never
+      // destroy files that the base or an earlier block already put here.
       await copyDir(srcPath, destPath, IGNORE_LIST);
     } else {
-      // 3. Directly copy valid files
       await fs.copy(srcPath, destPath, { overwrite: true });
     }
   }
 }
 
-/**
- * PACKAGE.JSON MERGER
- * * Deep merges dependencies, devDependencies, AND scripts.
- * This allows blocks (like Drizzle or Prisma) to provide their own 
- * CLI commands to the final project.
- */
+// PACKAGE.JSON MERGER
+//
+// Deep-merges dependencies, devDependencies, and scripts from a block's
+// package.json into the target project's package.json.
+//
+// Script merge rule: block scripts overwrite or add to base scripts.
+// This is how commands like `db:push` and `auth:setup` reach the user's project.
+//
+// "none" is a no-op.
 async function mergePackageJson(targetPath, feature, provider) {
-  const blockPkgPath = path.join(BLOCKS_DIR, feature, provider, "package.json");
+  if (!provider || provider === "none") return;
+
+  const folderName = BLOCK_FOLDER_MAP[feature]?.[provider] ?? provider;
+  const blockPkgPath = path.join(BLOCKS_DIR, feature, folderName, "package.json");
   const targetPkgPath = path.join(targetPath, "package.json");
 
-  // If either file is missing, we can't merge.
   if (!(await fs.pathExists(blockPkgPath)) || !(await fs.pathExists(targetPkgPath))) return;
 
   const targetPkg = await fs.readJson(targetPkgPath);
   const blockPkg = await fs.readJson(blockPkgPath);
 
-  // 1. Merge Dependencies
-  targetPkg.dependencies = {
-    ...(targetPkg.dependencies ?? {}),
-    ...(blockPkg.dependencies ?? {})
-  };
+  targetPkg.dependencies = { ...(targetPkg.dependencies ?? {}), ...(blockPkg.dependencies ?? {}) };
+  targetPkg.devDependencies = { ...(targetPkg.devDependencies ?? {}), ...(blockPkg.devDependencies ?? {}) };
+  targetPkg.scripts = { ...(targetPkg.scripts ?? {}), ...(blockPkg.scripts ?? {}) };
 
-  // 2. Merge Dev Dependencies
-  targetPkg.devDependencies = {
-    ...(targetPkg.devDependencies ?? {}),
-    ...(blockPkg.devDependencies ?? {})
-  };
-
-  // 3. Merge Scripts (The Golden Rule: Block scripts overwrite or add to Base)
-  // This is where 'db:push' or 'auth:setup' gets added to the user's project.
-  targetPkg.scripts = {
-    ...(targetPkg.scripts ?? {}),
-    ...(blockPkg.scripts ?? {})
-  };
-
-  // Save the merged package.json with 2-space formatting
   await fs.writeJson(targetPkgPath, targetPkg, { spaces: 2 });
 }
 
-/**
- * MAIN CLI EXECUTION FLOW
- */
+// MAIN CLI FLOW
 async function main() {
   printBanner();
   p.intro(chalk.bgGreen(chalk.black(" shipindays ")));
@@ -323,48 +475,89 @@ async function main() {
     }
   }
 
-  // pick database provider
-  const dbProvider = await p.select({
-    message: "Database Provider",
-    options: Object.entries(DATABASE_PROVIDERS).map(([value, { label, hint }]) => ({
-      value, label, hint,
-    })),
-  })
-  if (p.isCancel(dbProvider)) { p.cancel("Cancelled."); process.exit(0); }
+  // 2. Stack mode default or custom
+  //
+  // First ask whether to use the recommended default stack or pick manually.
+  // If "default" is chosen we skip all four provider prompts entirely and
+  // jump straight to git/install. If "custom" is chosen we show each prompt
+  // with the default pre-selected so users can change only what they want.
 
-  // Pick auth provider
-  const authProvider = await p.select({
-    message: "Auth provider",
-    options: Object.entries(AUTH_PROVIDERS).map(([value, { label, hint }]) => ({
-      value, label, hint,
-    })),
+  const stackMode = await p.select({
+    message: "How do you want to set up your stack?",
+    options: [
+      {
+        value: "default",
+        label: chalk.green("Use the recommended stack") + "  " + chalk.dim("(fastest)"),
+        hint: `Drizzle + Supabase Auth + Resend + Dodo Payments`,
+      },
+      {
+        value: "custom",
+        label: "I'll choose my own providers",
+        hint: "Pick database, auth, email, and payments individually",
+      },
+    ],
+    initialValue: "default",
   });
-  if (p.isCancel(authProvider)) { p.cancel("Cancelled."); process.exit(0); }
+  if (p.isCancel(stackMode)) { p.cancel("Cancelled."); process.exit(0); }
 
-  // 3. Pick email provider
-  const emailProvider = await p.select({
-    message: "Email provider",
-    options: Object.entries(EMAIL_PROVIDERS).map(([value, { label, hint }]) => ({
-      value, label, hint,
-    })),
-  });
-  if (p.isCancel(emailProvider)) { p.cancel("Cancelled."); process.exit(0); }
+  let choices;
 
-  const paymentProvider = await p.select({
-    message: "Payment provider",
-    options: Object.entries(PAYMENT_PROVIDERS).map(([value, { label, hint }]) => ({
-      value, label, hint,
-    })),
-  });
+  if (stackMode === "default") {
+    // Use defaults as-is, no further prompts needed
+    choices = { ...DEFAULTS };
 
-  const choices = {
-    database: dbProvider,
-    auth: authProvider,
-    email: emailProvider,
-    payments: paymentProvider
-  };
+  } else {
+    // Custom: show each provider prompt with default pre-selected
+    //
+    // The "none" option (appended by buildOptions) lets users skip any
+    // feature. initialValue still points at the recommended default so
+    // users only need to move the cursor when they want something different.
+    console.log("\n" + chalk.dim("  Choose your providers — defaults are pre-selected.\n"));
 
-  // 4. Git + install preferences
+    // Database
+    const dbProvider = await p.select({
+      message: "Database & ORM",
+      options: buildOptions(DATABASE_PROVIDERS),
+      initialValue: DEFAULTS.database,
+    });
+    if (p.isCancel(dbProvider)) { p.cancel("Cancelled."); process.exit(0); }
+
+    // Auth
+    const authProvider = await p.select({
+      message: "Authentication",
+      options: buildOptions(AUTH_PROVIDERS),
+      initialValue: DEFAULTS.auth,
+    });
+    if (p.isCancel(authProvider)) { p.cancel("Cancelled."); process.exit(0); }
+
+    // Email
+    const emailProvider = await p.select({
+      message: "Email",
+      options: buildOptions(EMAIL_PROVIDERS),
+      initialValue: DEFAULTS.email,
+    });
+    if (p.isCancel(emailProvider)) { p.cancel("Cancelled."); process.exit(0); }
+
+    // Payments
+    const paymentProvider = await p.select({
+      message: "Payments",
+      options: buildOptions(PAYMENT_PROVIDERS),
+      initialValue: DEFAULTS.payments,
+    });
+    if (p.isCancel(paymentProvider)) { p.cancel("Cancelled."); process.exit(0); }
+
+    choices = {
+      database: dbProvider,
+      auth: authProvider,
+      email: emailProvider,
+      payments: paymentProvider,
+    };
+  }
+
+  // Print a summary of what the user picked
+  printChoicesSummary(choices);
+
+  // 3. Git + install preferences
   const initGit = await p.confirm({
     message: "Initialize a git repository?",
     initialValue: true,
@@ -380,43 +573,46 @@ async function main() {
 
   const spin = p.spinner();
 
-  // 5. Copy base template
+  // 4. Copy base template
   spin.start("Copying base template...");
   await copyDir(BASE_DIR, targetPath, ["node_modules", ".next", ".turbo"]);
   spin.stop("Base template copied.");
 
-  // 6. Inject Blocks
-  // The injectBlock function now handles the internal recursion correctly.
-  const features = ["database", "auth", "email", "payments"];
+  // 5. Inject feature blocks
+  //
+  // Features are injected in this order: database → auth → email → payments.
+  // Later blocks can safely overwrite files from earlier blocks if needed.
+  // "none" selections are silently skipped inside injectBlock / mergePackageJson.
 
-  for (const feature of features) {
-    const selection = choices[feature]; // e.g., "drizzle"
-    if (!selection) continue;
+  const FEATURES = ["database", "auth", "email", "payments"];
 
-    // Determine the actual folder name in the filesystem
-    let folderName = selection;
-    if (feature === "database") {
-      folderName = DATABASE_BLOCK_MAP[selection];
+  for (const feature of FEATURES) {
+    const selection = choices[feature];
+
+    // "none" = user opted out of this feature
+    if (!selection || selection === "none") {
+      p.log.info(`${feature} skipped.`);
+      continue;
     }
 
+    const folderName = BLOCK_FOLDER_MAP[feature]?.[selection] ?? selection;
     spin.start(`Injecting ${feature}: ${folderName}...`);
 
-    // Use folderName for file operations
-    await injectBlock(feature, folderName, targetPath);
-    await mergePackageJson(targetPath, feature, folderName);
+    await injectBlock(feature, selection, targetPath);
+    await mergePackageJson(targetPath, feature, selection);
 
-    spin.stop(`${feature} injected ✓`);
+    spin.stop(`${feature} (${folderName}) injected ✓`);
   }
 
-  // 8. Write .env.example
+  // 6. Write .env.example 
   spin.start("Writing .env.example...");
   await fs.outputFile(path.join(targetPath, ".env.example"), buildEnvExample(choices));
   spin.stop(".env.example written.");
 
-  // 9. Write .gitignore
+  // 7. Write .gitignore
   await fs.outputFile(path.join(targetPath, ".gitignore"), buildGitignore());
 
-  // 10. Set project name in package.json
+  // 8. Set project name in package.json 
   spin.start("Configuring package.json...");
   const pkgPath = path.join(targetPath, "package.json");
   if (await fs.pathExists(pkgPath)) {
@@ -426,7 +622,7 @@ async function main() {
   }
   spin.stop("package.json configured.");
 
-  // 11. Git init
+  // 9. Git init
   if (initGit) {
     spin.start("Initialising git...");
     try {
@@ -439,7 +635,7 @@ async function main() {
     }
   }
 
-  // 12. Install dependencies
+  // 10. Install dependencies
   if (install) {
     spin.start(`Installing with ${pm}...`);
     try {
@@ -458,19 +654,56 @@ async function main() {
   printNextSteps(projectDir, pm, choices);
 }
 
+// PRINT HELPERS
 function printBanner() {
-  const bannerText = figlet.textSync("Ship In Days", {
-    font: "Slant",
-  });
-
+  const bannerText = figlet.textSync("Ship In Days", { font: "Slant" });
   console.log("\n");
-
-  // This creates a smooth transition from Orange to Purple
   console.log(gradient(["#FF8C00", "#8A2BE2"])(bannerText));
   console.log(chalk.dim("  Ship your SaaS in days, not months."));
   console.log(chalk.dim("  https://shipindays.nikhilsai.in\n"));
 }
 
+/**
+ * Prints a human-readable summary of the stack the user chose,
+ * including the provider website URL and whether a feature was skipped.
+ */
+function printChoicesSummary(choices) {
+  const ALL_PROVIDERS = {
+    database: DATABASE_PROVIDERS,
+    auth: AUTH_PROVIDERS,
+    email: EMAIL_PROVIDERS,
+    payments: PAYMENT_PROVIDERS,
+  };
+
+  console.log("\n" + chalk.bold("  Your stack:"));
+  console.log(chalk.dim("  ─────────────────────────────────────────────"));
+
+  for (const [feature, selection] of Object.entries(choices)) {
+    const featureLabel = feature.padEnd(10);
+
+    if (!selection || selection === "none") {
+      console.log(`  ${chalk.dim(featureLabel)}  ${chalk.dim("skipped")}`);
+      continue;
+    }
+
+    const providerMeta = ALL_PROVIDERS[feature]?.[selection];
+    const label = providerMeta?.label ?? selection;
+    const url = providerMeta?.url ? chalk.dim(`  (${providerMeta.url})`) : "";
+
+    // Show a "default" badge if the selection matches the recommended default
+    const isDefault = selection === DEFAULTS[feature];
+    const badge = isDefault ? chalk.bgGreen(chalk.black(" default ")) + " " : "";
+
+    console.log(`  ${chalk.cyan(featureLabel)}  ${badge}${label}${url}`);
+  }
+
+  console.log(chalk.dim("  ─────────────────────────────────────────────\n"));
+}
+
+// .ENV.EXAMPLE BUILDER
+//
+// Writes all base vars first, then each chosen provider's vars.
+// "none" selections are silently skipped.
 function buildEnvExample(choices) {
   let out = [
     "# shipindays — environment variables",
@@ -479,13 +712,18 @@ function buildEnvExample(choices) {
     "",
   ].join("\n");
 
+  // Base vars (always included)
   for (const [comment, vars] of Object.entries(ENV_VARS.base)) {
     out += `${comment}\n${vars.join("\n")}\n\n`;
   }
 
-  for (const [feature, provider] of Object.entries(choices)) {
-    const providerVars = ENV_VARS[feature]?.[provider];
+  // Feature vars (only for selected providers)
+  for (const [feature, selection] of Object.entries(choices)) {
+    if (!selection || selection === "none") continue;
+
+    const providerVars = ENV_VARS[feature]?.[selection];
     if (!providerVars) continue;
+
     for (const [comment, vars] of Object.entries(providerVars)) {
       out += `${comment}\n${vars.join("\n")}\n\n`;
     }
@@ -494,6 +732,7 @@ function buildEnvExample(choices) {
   return out.trimEnd() + "\n";
 }
 
+// .GITIGNORE BUILDER
 function buildGitignore() {
   return [
     "# dependencies",
@@ -526,19 +765,7 @@ function buildGitignore() {
   ].join("\n");
 }
 
-function isValidName(n) { return /^[a-zA-Z0-9-_]+$/.test(n); }
-
-function toSlug(s) {
-  return s.trim().toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-_]/g, "");
-}
-
-function detectPM() {
-  const a = process.env.npm_config_user_agent ?? "";
-  return a.includes("pnpm") ? "pnpm" : a.includes("yarn") ? "yarn" : "npm";
-}
-
-function run(cmd, cwd) { execSync(cmd, { cwd, stdio: "inherit" }); }
-
+// NEXT STEPS OUTPUT
 function printNextSteps(projectDir, pm, choices) {
   const isHere = projectDir === "." || projectDir === "./";
   const runCmd = pm === "npm" ? "npm run" : pm;
@@ -547,13 +774,27 @@ function printNextSteps(projectDir, pm, choices) {
 
   console.log("\n");
   console.log(chalk.green("  ✓ Your SaaS is scaffolded.\n"));
-  console.log(chalk.dim(`  Auth  → ${choices.auth}`));
-  console.log(chalk.dim(`  Email → ${choices.email}`));
+
+  // Show chosen providers
+  if (choices.database && choices.database !== "none")
+    console.log(chalk.dim(`  Database  → ${DATABASE_PROVIDERS[choices.database]?.label ?? choices.database}`));
+  if (choices.auth && choices.auth !== "none")
+    console.log(chalk.dim(`  Auth      → ${AUTH_PROVIDERS[choices.auth]?.label ?? choices.auth}`));
+  if (choices.email && choices.email !== "none")
+    console.log(chalk.dim(`  Email     → ${EMAIL_PROVIDERS[choices.email]?.label ?? choices.email}`));
+  if (choices.payments && choices.payments !== "none")
+    console.log(chalk.dim(`  Payments  → ${PAYMENT_PROVIDERS[choices.payments]?.label ?? choices.payments}`));
+
   console.log("");
   if (!isHere) s(`cd ${projectDir.replace(/^\.\//, "")}`);
   s("cp .env.example .env.local");
   s("  → Fill in your keys (see comments in .env.local)");
-  s(`${runCmd} db:push`);
+
+  // Only show db:push if a database was selected
+  if (choices.database && choices.database !== "none") {
+    s(`${runCmd} db:push`);
+  }
+
   s(`${runCmd} dev`);
   console.log("");
   console.log(chalk.dim("  Please give a star to the repo! Thanks"));
@@ -563,6 +804,13 @@ function printNextSteps(projectDir, pm, choices) {
   console.log(chalk.green("  Now go build what only you can build.\n"));
 }
 
+// SMALL UTILITIES
+function isValidName(n) { return /^[a-zA-Z0-9-_]+$/.test(n); }
+function toSlug(s) { return s.trim().toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-_]/g, ""); }
+function detectPM() { const a = process.env.npm_config_user_agent ?? ""; return a.includes("pnpm") ? "pnpm" : a.includes("yarn") ? "yarn" : "npm"; }
+function run(cmd, cwd) { execSync(cmd, { cwd, stdio: "inherit" }); }
+
+// ENTRY POINT
 main().catch((err) => {
   console.error(chalk.red("\n  Fatal: " + err.message));
   process.exit(1);
