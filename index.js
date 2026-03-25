@@ -1,5 +1,13 @@
 #!/usr/bin/env node
 
+/**
+ * SHIP IN DAYS - CLI CORE
+ * This CLI uses a "Base + Block" architecture.
+ * 1. The Base template is copied first (common UI/Config).
+ * 2. Feature Blocks (Auth, DB, etc.) are merged on top.
+ * 3. Dependencies are merged into a final package.json.
+ */
+
 import * as p from "@clack/prompts";
 import chalk from "chalk";
 import fs from "fs-extra";
@@ -9,25 +17,17 @@ import { fileURLToPath } from "url";
 import figlet from "figlet";
 import gradient from "gradient-string";
 
+// Resolve paths for ESM (since __dirname isn't global in ES modules)
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const TEMPLATES_DIR = path.join(__dirname, "templates");
 const BASE_DIR = path.join(TEMPLATES_DIR, "base");
 const BLOCKS_DIR = path.join(TEMPLATES_DIR, "blocks");
 
-function printBanner() {
-  const bannerText = figlet.textSync("Ship In Days", {
-    font: "Slant",
-  });
-
-  console.log("\n");
-
-  // This creates a smooth transition from Orange to Purple
-  console.log(gradient(["#FF8C00", "#8A2BE2"])(bannerText));
-  console.log(chalk.dim("  Ship your SaaS in days, not months."));
-  console.log(chalk.dim("  https://shipindays.nikhilsai.in\n"));
-}
-
+/**
+ * STEP 1: DEFINE PROVIDERS
+ * To add a new provider, add an object key here with a label and hint.
+ */
 // auth providers 
 const AUTH_PROVIDERS = {
   supabase: {
@@ -76,6 +76,11 @@ const DATABASE_PROVIDERS = {
   },
 };
 
+/**
+ * STEP 2: DEFINE ENVIRONMENT VARIABLES
+ * Every block must define its required variables here. 
+ * These get written to the user's .env.example.
+ */
 const ENV_VARS = {
   base: {
     "# App": ["NEXT_PUBLIC_APP_URL=http://localhost:3000"],
@@ -151,21 +156,24 @@ const ENV_VARS = {
   },
 };
 
-// block mapping
-// variable name : folder name 
+/**
+ * STEP 3: BLOCK FOLDER MAPPING
+ * If your folder name in /blocks doesn't match the variable key, map it here.
+ */
 const DATABASE_BLOCK_MAP = {
   drizzle: "drizzle-supabase",
   prisma: "prisma-supabase",
 };
 
 /**
- * RECURSIVE DIRECTORY MERGE
- * * This function walks through the source directory and copies files to the destination.
- * If a directory exists in both places, it dives deeper to merge contents rather 
- * than replacing the entire folder.
+ * RECURSIVE DIRECTORY MERGE (THE CORE ENGINE)
+ * This function is "Safe". It won't delete existing files in a folder; 
+ * it only adds new files or overwrites existing ones inside those folders.
  */
 async function copyDir(src, dest, skipNames = []) {
+  // Ensure the destination folder exists before we try to put files in it
   await fs.ensureDir(dest);
+
   const entries = await fs.readdir(src, { withFileTypes: true });
 
   for (const entry of entries) {
@@ -175,11 +183,11 @@ async function copyDir(src, dest, skipNames = []) {
     const destPath = path.join(dest, entry.name);
 
     if (entry.isDirectory()) {
-      // If it's a directory, recurse into it to ensure we don't 
-      // overwrite existing folders in the target, but merge into them.
+      // If it's a folder, WE DO NOT USE fs.copy. 
+      // We call copyDir again to go deeper (Recursion).
       await copyDir(srcPath, destPath, skipNames);
     } else {
-      // If it's a file, copy/overwrite it into the target.
+      // If it's a file, we overwrite the placeholder with the real block code.
       await fs.copy(srcPath, destPath, { overwrite: true });
     }
   }
@@ -187,8 +195,7 @@ async function copyDir(src, dest, skipNames = []) {
 
 /**
  * BLOCK INJECTION LOGIC
- * * Improved to handle deep nesting. It takes everything inside the provider folder 
- * (except package.json and node_modules) and merges it into the project root.
+ * This is the entry point for adding a feature (like Stripe or Supabase).
  */
 async function injectBlock(feature, provider, targetPath) {
   const blockRoot = path.join(BLOCKS_DIR, feature, provider);
@@ -199,23 +206,34 @@ async function injectBlock(feature, provider, targetPath) {
 
   const blockEntries = await fs.readdir(blockRoot, { withFileTypes: true });
 
+  // Define everything we want to ignore from the block folders
+  const IGNORE_LIST = [
+    "package.json",    // Handled by mergePackageJson
+    "node_modules",    // Should never be copied
+    ".next",           // Next.js build cache
+    ".turbo",          // Turborepo cache
+    ".DS_Store",       // macOS junk
+    "Thumbs.db",       // Windows junk
+    "README.md",       // Block-specific instructions
+    ".env",            // Local env files in blocks
+    ".env.local",      // Local env secrets in blocks
+    "dist",            // Compiled files
+    ".git"             // Sub-git repos
+  ];
+
   for (const entry of blockEntries) {
-    // 1. Skip metadata and dependency files
-    if (
-      entry.name === "package.json" ||
-      entry.name === "node_modules" ||
-      entry.name === ".next" ||
-      entry.name === "README.md"
-    ) continue;
+    // 1. Skip metadata, dependency files, and unwanted cache
+    if (IGNORE_LIST.includes(entry.name)) continue;
 
     const srcPath = path.join(blockRoot, entry.name);
     const destPath = path.join(targetPath, entry.name);
 
     if (entry.isDirectory()) {
-      // 2. Recursive merge for directories like 'src', 'public', etc.
-      await copyDir(srcPath, destPath, ["node_modules", ".next"]);
+      // 2. Recursive merge for directories (src, public, hooks, etc.)
+      // We pass the IGNORE_LIST down to copyDir as well
+      await copyDir(srcPath, destPath, IGNORE_LIST);
     } else {
-      // 3. Directly copy files at the block root (like tailwind.config.ts or index.ts)
+      // 3. Directly copy valid files
       await fs.copy(srcPath, destPath, { overwrite: true });
     }
   }
@@ -223,116 +241,46 @@ async function injectBlock(feature, provider, targetPath) {
 
 /**
  * PACKAGE.JSON MERGER
- * * Deep merges dependencies and devDependencies so the final project
- * has all required libraries from every selected block.
+ * * Deep merges dependencies, devDependencies, AND scripts.
+ * This allows blocks (like Drizzle or Prisma) to provide their own 
+ * CLI commands to the final project.
  */
 async function mergePackageJson(targetPath, feature, provider) {
   const blockPkgPath = path.join(BLOCKS_DIR, feature, provider, "package.json");
   const targetPkgPath = path.join(targetPath, "package.json");
 
-  if (!await fs.pathExists(blockPkgPath) || !await fs.pathExists(targetPkgPath)) return;
+  // If either file is missing, we can't merge.
+  if (!(await fs.pathExists(blockPkgPath)) || !(await fs.pathExists(targetPkgPath))) return;
 
   const targetPkg = await fs.readJson(targetPkgPath);
   const blockPkg = await fs.readJson(blockPkgPath);
 
-  targetPkg.dependencies = { ...(targetPkg.dependencies ?? {}), ...(blockPkg.dependencies ?? {}) };
-  targetPkg.devDependencies = { ...(targetPkg.devDependencies ?? {}), ...(blockPkg.devDependencies ?? {}) };
+  // 1. Merge Dependencies
+  targetPkg.dependencies = {
+    ...(targetPkg.dependencies ?? {}),
+    ...(blockPkg.dependencies ?? {})
+  };
 
+  // 2. Merge Dev Dependencies
+  targetPkg.devDependencies = {
+    ...(targetPkg.devDependencies ?? {}),
+    ...(blockPkg.devDependencies ?? {})
+  };
+
+  // 3. Merge Scripts (The Golden Rule: Block scripts overwrite or add to Base)
+  // This is where 'db:push' or 'auth:setup' gets added to the user's project.
+  targetPkg.scripts = {
+    ...(targetPkg.scripts ?? {}),
+    ...(blockPkg.scripts ?? {})
+  };
+
+  // Save the merged package.json with 2-space formatting
   await fs.writeJson(targetPkgPath, targetPkg, { spaces: 2 });
 }
 
-function buildEnvExample(choices) {
-  let out = [
-    "# shipindays — environment variables",
-    "# 1. cp .env.example .env.local",
-    "# 2. Fill in every blank value before running npm run dev",
-    "",
-  ].join("\n");
-
-  for (const [comment, vars] of Object.entries(ENV_VARS.base)) {
-    out += `${comment}\n${vars.join("\n")}\n\n`;
-  }
-
-  for (const [feature, provider] of Object.entries(choices)) {
-    const providerVars = ENV_VARS[feature]?.[provider];
-    if (!providerVars) continue;
-    for (const [comment, vars] of Object.entries(providerVars)) {
-      out += `${comment}\n${vars.join("\n")}\n\n`;
-    }
-  }
-
-  return out.trimEnd() + "\n";
-}
-
-function buildGitignore() {
-  return [
-    "# dependencies",
-    "node_modules/",
-    ".pnp",
-    ".pnp.js",
-    "",
-    "# Next.js",
-    ".next/",
-    "out/",
-    "build/",
-    "",
-    "# env — never commit these",
-    ".env",
-    ".env.local",
-    ".env.*.local",
-    "",
-    "# misc",
-    ".DS_Store",
-    "*.pem",
-    "npm-debug.log*",
-    "yarn-debug.log*",
-    "yarn-error.log*",
-    "",
-    "# drizzle",
-    "drizzle/",
-    "",
-    "# Vercel",
-    ".vercel",
-  ].join("\n");
-}
-
-function isValidName(n) { return /^[a-zA-Z0-9-_]+$/.test(n); }
-
-function toSlug(s) {
-  return s.trim().toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-_]/g, "");
-}
-
-function detectPM() {
-  const a = process.env.npm_config_user_agent ?? "";
-  return a.includes("pnpm") ? "pnpm" : a.includes("yarn") ? "yarn" : "npm";
-}
-
-function run(cmd, cwd) { execSync(cmd, { cwd, stdio: "inherit" }); }
-
-function printNextSteps(projectDir, pm, choices) {
-  const isHere = projectDir === "." || projectDir === "./";
-  const runCmd = pm === "npm" ? "npm run" : pm;
-  let n = 1;
-  const s = (cmd) => console.log(chalk.dim(`  ${n++}. ${cmd}`));
-
-  console.log("\n");
-  console.log(chalk.green("  ✓ Your SaaS is scaffolded.\n"));
-  console.log(chalk.dim(`  Auth  → ${choices.auth}`));
-  console.log(chalk.dim(`  Email → ${choices.email}`));
-  console.log("");
-  if (!isHere) s(`cd ${projectDir.replace(/^\.\//, "")}`);
-  s("cp .env.example .env.local");
-  s("  → Fill in your keys (see comments in .env.local)");
-  s(`${runCmd} db:push`);
-  s(`${runCmd} dev`);
-  console.log("");
-  console.log(chalk.dim("  Please give a star to the repo! Thanks"));
-  console.log(chalk.dim("  GitHub  → https://github.com/nikhilsaiankilla/shipindays"));
-  console.log(chalk.dim("  Twitter → https://x.com/itzznikhilsai"));
-  console.log("");
-  console.log(chalk.green("  Now go build what only you can build.\n"));
-}
-
+/**
+ * MAIN CLI EXECUTION FLOW
+ */
 async function main() {
   printBanner();
   p.intro(chalk.bgGreen(chalk.black(" shipindays ")));
@@ -508,6 +456,111 @@ async function main() {
 
   p.outro(chalk.green("Done!"));
   printNextSteps(projectDir, pm, choices);
+}
+
+function printBanner() {
+  const bannerText = figlet.textSync("Ship In Days", {
+    font: "Slant",
+  });
+
+  console.log("\n");
+
+  // This creates a smooth transition from Orange to Purple
+  console.log(gradient(["#FF8C00", "#8A2BE2"])(bannerText));
+  console.log(chalk.dim("  Ship your SaaS in days, not months."));
+  console.log(chalk.dim("  https://shipindays.nikhilsai.in\n"));
+}
+
+function buildEnvExample(choices) {
+  let out = [
+    "# shipindays — environment variables",
+    "# 1. cp .env.example .env.local",
+    "# 2. Fill in every blank value before running npm run dev",
+    "",
+  ].join("\n");
+
+  for (const [comment, vars] of Object.entries(ENV_VARS.base)) {
+    out += `${comment}\n${vars.join("\n")}\n\n`;
+  }
+
+  for (const [feature, provider] of Object.entries(choices)) {
+    const providerVars = ENV_VARS[feature]?.[provider];
+    if (!providerVars) continue;
+    for (const [comment, vars] of Object.entries(providerVars)) {
+      out += `${comment}\n${vars.join("\n")}\n\n`;
+    }
+  }
+
+  return out.trimEnd() + "\n";
+}
+
+function buildGitignore() {
+  return [
+    "# dependencies",
+    "node_modules/",
+    ".pnp",
+    ".pnp.js",
+    "",
+    "# Next.js",
+    ".next/",
+    "out/",
+    "build/",
+    "",
+    "# env — never commit these",
+    ".env",
+    ".env.local",
+    ".env.*.local",
+    "",
+    "# misc",
+    ".DS_Store",
+    "*.pem",
+    "npm-debug.log*",
+    "yarn-debug.log*",
+    "yarn-error.log*",
+    "",
+    "# drizzle",
+    "drizzle/",
+    "",
+    "# Vercel",
+    ".vercel",
+  ].join("\n");
+}
+
+function isValidName(n) { return /^[a-zA-Z0-9-_]+$/.test(n); }
+
+function toSlug(s) {
+  return s.trim().toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-_]/g, "");
+}
+
+function detectPM() {
+  const a = process.env.npm_config_user_agent ?? "";
+  return a.includes("pnpm") ? "pnpm" : a.includes("yarn") ? "yarn" : "npm";
+}
+
+function run(cmd, cwd) { execSync(cmd, { cwd, stdio: "inherit" }); }
+
+function printNextSteps(projectDir, pm, choices) {
+  const isHere = projectDir === "." || projectDir === "./";
+  const runCmd = pm === "npm" ? "npm run" : pm;
+  let n = 1;
+  const s = (cmd) => console.log(chalk.dim(`  ${n++}. ${cmd}`));
+
+  console.log("\n");
+  console.log(chalk.green("  ✓ Your SaaS is scaffolded.\n"));
+  console.log(chalk.dim(`  Auth  → ${choices.auth}`));
+  console.log(chalk.dim(`  Email → ${choices.email}`));
+  console.log("");
+  if (!isHere) s(`cd ${projectDir.replace(/^\.\//, "")}`);
+  s("cp .env.example .env.local");
+  s("  → Fill in your keys (see comments in .env.local)");
+  s(`${runCmd} db:push`);
+  s(`${runCmd} dev`);
+  console.log("");
+  console.log(chalk.dim("  Please give a star to the repo! Thanks"));
+  console.log(chalk.dim("  GitHub  → https://github.com/nikhilsaiankilla/shipindays"));
+  console.log(chalk.dim("  Twitter → https://x.com/itzznikhilsai"));
+  console.log("");
+  console.log(chalk.green("  Now go build what only you can build.\n"));
 }
 
 main().catch((err) => {
