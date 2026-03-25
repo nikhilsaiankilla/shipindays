@@ -13,7 +13,7 @@
 //   signOut()        — signs out and redirects to /
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { createSupabaseServerClient } from "@/src/lib/supabase/server";
+import { getSupabaseServerClient } from "@/src/lib/auth/server";
 import { redirect } from "next/navigation";
 
 // ─── getCurrentUser ───────────────────────────────────────────────────────────
@@ -23,7 +23,7 @@ import { redirect } from "next/navigation";
 //   const user = await getCurrentUser();
 //   if (user) { show dashboard link } else { show login link }
 export async function getCurrentUser() {
-  const supabase = await createSupabaseServerClient();
+  const supabase = await getSupabaseServerClient();
   const {
     data: { user },
     error,
@@ -48,7 +48,7 @@ export async function requireUser() {
 // Signs the user out and redirects to /.
 // Called from /api/auth/logout route.
 export async function signOut() {
-  const supabase = await createSupabaseServerClient();
+  const supabase = await getSupabaseServerClient();
   await supabase.auth.signOut();
   redirect("/");
 }

@@ -1,8 +1,10 @@
 // src/db/index.ts
 
-import { db } from "@/src/db";
-import { users, subscriptions } from "./schema";
+import { getDb } from "@/src/db";
+import { users, subscriptions, payments, webhookEvents } from "./schema";
 import { eq, sql } from "drizzle-orm";
+
+const db = getDb();
 
 // create user 
 export async function createUser({

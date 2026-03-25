@@ -6,7 +6,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { NextRequest, NextResponse } from "next/server";
-import { createSupabaseServerClient } from "@/src/lib/supabase/server";
+import { getSupabaseServerClient } from "@/src/lib/auth/server";
 
 export async function POST(req: NextRequest) {
     const { email } = await req.json();
@@ -15,7 +15,7 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: "Email is required." }, { status: 400 });
     }
 
-    const supabase = await createSupabaseServerClient();
+    const supabase = await getSupabaseServerClient();
     const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
 
     const { error } = await supabase.auth.signInWithOtp({

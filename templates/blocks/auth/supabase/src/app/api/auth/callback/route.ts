@@ -9,7 +9,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { NextRequest, NextResponse } from "next/server";
-import { createSupabaseServerClient } from "@/src/lib/supabase/server";
+import { getSupabaseServerClient } from "@/src/lib/auth/server";
 
 export async function GET(req: NextRequest) {
     const { searchParams, origin } = new URL(req.url);
@@ -21,7 +21,7 @@ export async function GET(req: NextRequest) {
         return NextResponse.redirect(`${appUrl}/login?error=no_code`);
     }
 
-    const supabase = await createSupabaseServerClient();
+    const supabase = await getSupabaseServerClient();
 
     // Exchange the code for a session — sets the session cookie
     const { error } = await supabase.auth.exchangeCodeForSession(code);

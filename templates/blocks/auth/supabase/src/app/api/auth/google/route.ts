@@ -6,10 +6,10 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { NextResponse } from "next/server";
-import { createSupabaseServerClient } from "@/src/lib/supabase/server";
+import { getSupabaseServerClient } from "@/src/lib/auth/server";
 
 export async function GET() {
-    const supabase = await createSupabaseServerClient();
+    const supabase = await getSupabaseServerClient();
     const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
 
     const { data, error } = await supabase.auth.signInWithOAuth({

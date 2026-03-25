@@ -12,11 +12,12 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { NextResponse } from "next/server";
-import { createSupabaseServerClient } from "@/src/lib/supabase/server";
+import { getSupabaseServerClient } from "@/src/lib/auth/server";
 import { getUser, createUser, updateUserLogin } from "@/src/db/db-helpers";
+// import { sendWelcomeEmail} from '@/src/lib/email' 
 
 export async function GET() {
-    const supabase = await createSupabaseServerClient();
+    const supabase = await getSupabaseServerClient();
     const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
 
     // Get the logged-in user from the session
@@ -26,22 +27,30 @@ export async function GET() {
         return NextResponse.redirect(`${appUrl}/login?error=no_session`);
     }
 
+    const authId = user?.id;
+
     // Check if user exists in YOUR DB
     const existingUser = await getUser({
         field: "authId",
-        value: user?.id,
+        value: authId,
     });
 
     // If new user → create
     if (!existingUser) {
         await createUser({
-            email: user.email!,
-            authId: user.id,
-            name: user.user_metadata?.full_name ?? undefined,
-            image: user.user_metadata?.avatar_url ?? undefined,
+            email: user?.email!,
+            authId: user?.id,
+            name: user?.user_metadata?.full_name ?? undefined,
+            image: user?.user_metadata?.avatar_url ?? undefined,
             lastLoginAt: new Date(),
         });
 
+        // uncomment this if you want to send welcome email 
+        // try {
+            // await sendWelcomeEmail(user?.email, user?.name)
+        // } catch (error) {
+            // do nothing 
+        // }
         return NextResponse.redirect(`${appUrl}/onboarding`);
     } else {
         await updateUserLogin({
