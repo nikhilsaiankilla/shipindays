@@ -193,29 +193,29 @@ async function copyDir(src, dest, skipNames = []) {
 async function injectBlock(feature, provider, targetPath) {
   const blockRoot = path.join(BLOCKS_DIR, feature, provider);
 
-  if (!await fs.pathExists(blockRoot)) {
+  if (!(await fs.pathExists(blockRoot))) {
     throw new Error(`Block folder missing: ${blockRoot}`);
   }
 
   const blockEntries = await fs.readdir(blockRoot, { withFileTypes: true });
 
   for (const entry of blockEntries) {
-    // 1. Skip package.json (handled by mergePackageJson)
-    // 2. Skip node_modules or .next if they exist in the template
+    // 1. Skip metadata and dependency files
     if (
       entry.name === "package.json" ||
       entry.name === "node_modules" ||
-      entry.name === ".next"
+      entry.name === ".next" ||
+      entry.name === "README.md"
     ) continue;
 
     const srcPath = path.join(blockRoot, entry.name);
     const destPath = path.join(targetPath, entry.name);
 
     if (entry.isDirectory()) {
-      // This will now correctly merge 'src', 'public', 'hooks', etc.
-      // because copyDir is recursive.
+      // 2. Recursive merge for directories like 'src', 'public', etc.
       await copyDir(srcPath, destPath, ["node_modules", ".next"]);
     } else {
+      // 3. Directly copy files at the block root (like tailwind.config.ts or index.ts)
       await fs.copy(srcPath, destPath, { overwrite: true });
     }
   }
