@@ -3,7 +3,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { billing } from "@/src/lib/payments"; // adjust path if needed
 import { getSupabaseServerClient } from "@/src/lib/auth/server";
-import { getUser } from "@/src/db";
+import { getUser } from "@/src/db/db-helpers";
 
 export const GET = async (req: NextRequest) => {
     try {
@@ -15,7 +15,7 @@ export const GET = async (req: NextRequest) => {
             error: authError,
         } = await supabase.auth.getUser();
 
-        if (authError || !authUser) {
+        if (authError || !authUser || !authUser?.email) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 

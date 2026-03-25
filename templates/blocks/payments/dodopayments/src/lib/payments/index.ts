@@ -1,7 +1,10 @@
 import { DodoPayments } from "dodopayments";
 
+const ENVIRONMENT = process.env.DODO_ENV === "live" ? "live" : "test";
+
 const dodo = new DodoPayments({
-    apiKey: process.env.DODO_PAYMENTS_API_KEY,
+    bearerToken: process.env.DODO_PAYMENTS_API_KEY!,
+    environment: ENVIRONMENT === "live" ? "live_mode" : "test_mode",
 });
 
 export const billing = {

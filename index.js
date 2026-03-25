@@ -237,6 +237,7 @@ const ENV_VARS = {
       "# Dodo Payments (app.dodopayments.com → Developers → API Keys)": [
         "DODO_PAYMENTS_API_KEY=",
         "DODO_PAYMENTS_WEBHOOK_KEY=",
+        "DODO_ENV=test"
       ],
       "# Dodo Pricing": [
         "NEXT_PUBLIC_DODO_PRICE_ID_BASIC=",

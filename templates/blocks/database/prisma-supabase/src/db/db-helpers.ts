@@ -27,7 +27,6 @@ export async function createUser({
   });
 }
 
-// get user by email / id / authid 
 export async function getUser({
   field,
   value,
@@ -50,7 +49,9 @@ export async function getUser({
   return null;
 }
 
-// create subscription
+// SUBSCRIPTIONS
+
+// keep but DO NOT use in webhooks
 export async function createSubscription({
   id,
   userId,
@@ -78,7 +79,100 @@ export async function createSubscription({
   });
 }
 
-// create payment 
+// MAIN METHOD (use this everywhere)
+export async function upsertSubscription({
+  id,
+  userId,
+  planId,
+  status,
+  currentPeriodEnd,
+  cancelAtPeriodEnd = false,
+}: {
+  id: string;
+  userId: string;
+  planId: string;
+  status: string;
+  currentPeriodEnd: Date;
+  cancelAtPeriodEnd?: boolean;
+}) {
+  return prisma.subscription.upsert({
+    where: {
+      userId, // unique constraint
+    },
+    create: {
+      id,
+      userId,
+      planId,
+      status,
+      currentPeriodEnd,
+      cancelAtPeriodEnd,
+    },
+    update: {
+      id,
+      planId,
+      status,
+      currentPeriodEnd,
+      cancelAtPeriodEnd,
+    },
+  });
+}
+
+// update by provider subscription id
+export async function updateSubscriptionById({
+  id,
+  data,
+}: {
+  id: string;
+  data: Partial<{
+    planId: string;
+    status: string;
+    currentPeriodEnd: Date;
+    cancelAtPeriodEnd: boolean;
+  }>;
+}) {
+  return prisma.subscription.update({
+    where: { id },
+    data,
+  }).catch(() => null); // prevent crash if not found
+}
+
+// update by userId (safer fallback)
+export async function updateSubscriptionByUserId({
+  userId,
+  data,
+}: {
+  userId: string;
+  data: Partial<{
+    planId: string;
+    status: string;
+    currentPeriodEnd: Date;
+    cancelAtPeriodEnd: boolean;
+  }>;
+}) {
+  return prisma.subscription.update({
+    where: { userId },
+    data,
+  }).catch(() => null);
+}
+
+// get subscription
+export async function getSubscriptionByUserId(userId: string) {
+  return prisma.subscription.findUnique({
+    where: { userId },
+  });
+}
+
+// expire subscription
+export async function expireSubscription(id: string) {
+  return prisma.subscription.update({
+    where: { id },
+    data: {
+      status: "expired",
+    },
+  }).catch(() => null);
+}
+
+// PAYMENTS
 export async function createPayment({
   id,
   userId,
@@ -103,14 +197,13 @@ export async function createPayment({
   });
 }
 
-// get payment by id 
 export async function getPaymentById(id: string) {
   return prisma.payment.findUnique({
     where: { id },
   });
 }
 
-// create webhook 
+// WEBHOOK EVENTS
 export async function createWebhookEvent({
   id,
   type,
@@ -126,7 +219,6 @@ export async function createWebhookEvent({
   });
 }
 
-// check webhook 
 export async function hasWebhookEvent(id: string) {
   const event = await prisma.webhookEvent.findUnique({
     where: { id },
@@ -135,6 +227,7 @@ export async function hasWebhookEvent(id: string) {
   return !!event;
 }
 
+// USER TRACKING
 export async function updateUserLogin({
   authId,
   lastLoginAt = new Date(),
