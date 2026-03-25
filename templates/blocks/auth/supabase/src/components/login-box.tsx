@@ -1,14 +1,5 @@
 "use client";
 
-// FILE: src/app/(auth)/login/page.tsx
-// ROUTE: /login
-// ROLE: login page — Google OAuth + Magic Link only
-//
-// Flow:
-//   Google  → clicks button → /api/auth/google   → Google OAuth → /api/auth/callback → /api/auth/complete → /dashboard or /onboarding
-//   Magic   → enters email  → /api/auth/magic     → email sent  → user clicks link   → /api/auth/callback → /api/auth/complete → /dashboard or /onboarding
-// ─────────────────────────────────────────────────────────────────────────────
-
 import { useState } from "react";
 
 export default function LoginBox() {
@@ -17,7 +8,6 @@ export default function LoginBox() {
     const [loading, setLoading] = useState<"google" | "magic" | null>(null);
     const [error, setError] = useState<string | null>(null);
 
-    // ── Google OAuth ────────────────────────────────────────────────────────────
     async function handleGoogle() {
         setLoading("google");
         setError(null);
@@ -26,17 +16,17 @@ export default function LoginBox() {
         const data = await res.json();
 
         if (data.url) {
-            window.location.href = data.url; // redirect to Google
+            window.location.href = data.url;
         } else {
             setError("Could not start Google login. Try again.");
             setLoading(null);
         }
     }
 
-    // ── Magic Link ──────────────────────────────────────────────────────────────
     async function handleMagicLink(e: React.FormEvent) {
         e.preventDefault();
         if (!email) return;
+
         setLoading("magic");
         setError(null);
 
@@ -51,126 +41,129 @@ export default function LoginBox() {
         if (res.ok) {
             setMagicSent(true);
         } else {
-            setError(data.error ?? "Could not send magic link. Try again.");
+            setError(data.error ?? "Could not send magic link.");
         }
+
         setLoading(null);
     }
 
-    // ── Magic link sent state ───────────────────────────────────────────────────
+    // Magic sent state (clean + centered + calm)
     if (magicSent) {
         return (
-            <div className="min-h-screen flex items-center justify-center bg-background px-4">
-                <div className="w-full max-w-sm text-center space-y-4">
-                    <div className="text-4xl">📬</div>
-                    <h1 className="text-xl font-semibold tracking-tight">Check your email</h1>
-                    <p className="text-muted-foreground text-sm leading-relaxed">
-                        We sent a magic link to{" "}
-                        <span className="font-medium text-foreground">{email}</span>.
-                        <br />
-                        Click the link in the email to sign in.
+            <div className="w-full max-w-md px-2 mx-auto">
+                <div className="rounded-2xl border bg-background/60 backdrop-blur-md shadow-sm px-8 py-10 text-center space-y-5">
+                    <div className="text-3xl">📬</div>
+
+                    <h1 className="text-xl font-semibold">
+                        Check your email
+                    </h1>
+
+                    <p className="text-sm text-muted-foreground leading-relaxed">
+                        We sent a login link to{" "}
+                        <span className="font-medium text-foreground">
+                            {email}
+                        </span>
                     </p>
+
                     <button
-                        onClick={() => { setMagicSent(false); setEmail(""); }}
-                        className="text-sm text-muted-foreground underline underline-offset-4 hover:text-foreground transition-colors"
+                        onClick={() => {
+                            setMagicSent(false);
+                            setEmail("");
+                        }}
+                        className="text-sm underline underline-offset-4 text-muted-foreground hover:text-foreground"
                     >
-                        Use a different email
+                        Use another email
                     </button>
                 </div>
             </div>
         );
     }
 
-    // ── Main login UI ───────────────────────────────────────────────────────────
     return (
-        <div className="min-h-screen flex items-center justify-center bg-background px-4">
-            <div className="w-full max-w-sm space-y-8">
+        <div className="w-full max-w-md px-2 mx-auto">
+
+            <div className="rounded-2xl border bg-background/60 backdrop-blur-md shadow-sm px-8 py-10 space-y-8">
 
                 {/* Header */}
-                <div className="text-center space-y-2">
-                    <h1 className="text-2xl font-semibold tracking-tight">
-                        Welcome
+                <div className="text-center space-y-3">
+                    <h1 className="text-3xl font-semibold tracking-tight">
+                        Welcome back
                     </h1>
                     <p className="text-sm text-muted-foreground">
-                        Sign in or create an account to continue
+                        Continue with Google or email
                     </p>
                 </div>
 
-                <div className="space-y-4">
+                {/* Google */}
+                <button
+                    onClick={handleGoogle}
+                    disabled={loading !== null}
+                    className="w-full flex items-center justify-center gap-3 
+                        px-4 py-3 rounded-xl border text-sm font-medium 
+                        bg-white text-black hover:bg-gray-50
+                        transition-all duration-200
+                        disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                    {loading === "google" ? <Spinner /> : <GoogleIcon />}
+                    Continue with Google
+                </button>
 
-                    {/* Google Button */}
-                    <button
-                        onClick={handleGoogle}
-                        disabled={loading !== null}
-                        className="w-full flex items-center justify-center gap-3 px-4 py-3
-                       border rounded-lg text-sm font-medium bg-background
-                       hover:bg-muted transition-colors disabled:opacity-50
-                       disabled:cursor-not-allowed"
-                    >
-                        {loading === "google" ? (
-                            <Spinner />
-                        ) : (
-                            <GoogleIcon />
-                        )}
-                        Continue with Google
-                    </button>
-
-                    {/* Divider */}
-                    <div className="relative">
-                        <div className="absolute inset-0 flex items-center">
-                            <div className="w-full border-t border-border" />
-                        </div>
-                        <div className="relative flex justify-center text-xs">
-                            <span className="bg-background px-3 text-muted-foreground">
-                                or continue with email
-                            </span>
-                        </div>
-                    </div>
-
-                    {/* Magic Link Form */}
-                    <form onSubmit={handleMagicLink} className="space-y-3">
-                        <input
-                            type="email"
-                            required
-                            value={email}
-                            onChange={(e) => setEmail(e.target.value)}
-                            placeholder="you@example.com"
-                            className="w-full px-4 py-3 border rounded-lg text-sm bg-background
-                         placeholder:text-muted-foreground
-                         focus:outline-none focus:ring-2 focus:ring-ring
-                         disabled:opacity-50"
-                            disabled={loading !== null}
-                        />
-                        <button
-                            type="submit"
-                            disabled={loading !== null || !email}
-                            className="w-full py-3 bg-foreground text-background rounded-lg
-                         text-sm font-medium hover:bg-foreground/90
-                         disabled:opacity-50 disabled:cursor-not-allowed
-                         transition-colors flex items-center justify-center gap-2"
-                        >
-                            {loading === "magic" ? <Spinner light /> : null}
-                            Send magic link
-                        </button>
-                    </form>
-
-                    {/* Error */}
-                    {error && (
-                        <p className="text-sm text-destructive text-center">{error}</p>
-                    )}
-
+                {/* Divider */}
+                <div className="flex items-center gap-3">
+                    <div className="h-px flex-1 bg-border" />
+                    <span className="text-xs text-muted-foreground">
+                        or use email
+                    </span>
+                    <div className="h-px flex-1 bg-border" />
                 </div>
 
-                {/* Footer note */}
-                <p className="text-center text-xs text-muted-foreground leading-relaxed">
-                    By continuing you agree to our{" "}
-                    <a href="/terms" className="underline underline-offset-2 hover:text-foreground">
+                {/* Email Form */}
+                <form onSubmit={handleMagicLink} className="space-y-3">
+
+                    <input
+                        type="email"
+                        required
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        placeholder="you@example.com"
+                        disabled={loading !== null}
+                        className="w-full px-4 py-3 rounded-xl border bg-background text-sm
+                            placeholder:text-muted-foreground
+                            focus:outline-none focus:ring-2 focus:ring-ring"
+                    />
+
+                    <button
+                        type="submit"
+                        disabled={loading !== null || !email}
+                        className="w-full py-3 rounded-xl text-sm font-medium
+                            bg-foreground text-background
+                            hover:bg-foreground/90
+                            transition-all
+                            disabled:opacity-50 disabled:cursor-not-allowed
+                            flex items-center justify-center gap-2"
+                    >
+                        {loading === "magic" && <Spinner light />}
+                        Send magic link
+                    </button>
+                </form>
+
+                {/* Error */}
+                {error && (
+                    <p className="text-sm text-destructive text-center">
+                        {error}
+                    </p>
+                )}
+
+                {/* Footer */}
+                <p className="text-center text-xs text-muted-foreground leading-relaxed px-2">
+                    By continuing, you agree to our{" "}
+                    <a href="/terms" className="underline underline-offset-4 hover:text-foreground">
                         Terms
                     </a>{" "}
                     and{" "}
-                    <a href="/privacy" className="underline underline-offset-2 hover:text-foreground">
+                    <a href="/privacy" className="underline underline-offset-4 hover:text-foreground">
                         Privacy Policy
-                    </a>
-                    .
+                    </a>.
                 </p>
 
             </div>
@@ -178,7 +171,9 @@ export default function LoginBox() {
     );
 }
 
-// ── Icons ─────────────────────────────────────────────────────────────────────
+/* -------------------------------------------------------------------------- */
+/* ICONS */
+/* -------------------------------------------------------------------------- */
 
 function GoogleIcon() {
     return (
@@ -194,8 +189,9 @@ function GoogleIcon() {
 function Spinner({ light = false }: { light?: boolean }) {
     return (
         <svg
-            className={`w-4 h-4 animate-spin ${light ? "text-background" : "text-foreground"}`}
-            fill="none" viewBox="0 0 24 24"
+            className={`w-4 h-4 animate-spin ${light ? "text-background" : ""}`}
+            fill="none"
+            viewBox="0 0 24 24"
         >
             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
