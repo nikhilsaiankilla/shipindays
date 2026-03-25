@@ -87,7 +87,7 @@ const ENV_VARS = {
       "# Supabase database url! go to supabase -> connect -> transaction pooler": [
         "DATABASE_URL=",
       ],
-    },  
+    },
 
     prisma: {
       "# PostgreSQL connection (Supabase or any provider)": [
@@ -440,19 +440,23 @@ async function main() {
   // 6. Inject Blocks
   // The injectBlock function now handles the internal recursion correctly.
   const features = ["database", "auth", "email", "payments"];
-  
+
   for (const feature of features) {
-    let provider = choices[feature];
-    if (!provider) continue;
-  
-    // map database providers to actual folder names
+    const selection = choices[feature]; // e.g., "drizzle"
+    if (!selection) continue;
+
+    // Determine the actual folder name in the filesystem
+    let folderName = selection;
     if (feature === "database") {
-      provider = DATABASE_BLOCK_MAP[provider];
+      folderName = DATABASE_BLOCK_MAP[selection];
     }
-  
-    spin.start(`Injecting ${feature}: ${provider}...`);
-    await injectBlock(feature, provider, targetPath);
-    await mergePackageJson(targetPath, feature, provider);
+
+    spin.start(`Injecting ${feature}: ${folderName}...`);
+
+    // Use folderName for file operations
+    await injectBlock(feature, folderName, targetPath);
+    await mergePackageJson(targetPath, feature, folderName);
+
     spin.stop(`${feature} injected ✓`);
   }
 
