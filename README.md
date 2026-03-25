@@ -1,12 +1,12 @@
-# ⚡ shipindays
+# shipindays
 
 > Scaffold a production-ready Next.js SaaS in seconds. Pick your stack, get auth + email wired up and working.
 
 ```bash
-npx @shipindays/shipindays@latest my-app
+npx create-shipindays-app@latest mysaas
 ```
 
-[![npm version](https://img.shields.io/npm/v/create-shipindays)](https://www.npmjs.com/package/@shipindays/shipindays)
+[![npm version](https://img.shields.io/npm/v/create-shipindays)](https://www.npmjs.com/package/create-shipindays-app)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](./LICENSE)
 [![GitHub stars](https://img.shields.io/github/stars/nikhilsaiankilla/shipindays)](https://github.com/nikhilsaiankilla/shipindays)
 
@@ -19,6 +19,10 @@ Most SaaS boilerplates give you one fixed stack. You either use it or you don't.
 `create-shipindays` asks you what you want and builds it for you:
 
 ```
+? Database provider
+  ❯ Drizzle ORM + PostgreSQL
+    Prisma ORM + PostgreSQL
+
 ? Auth provider
   ❯ Supabase Auth
     NextAuth v5
@@ -27,8 +31,14 @@ Most SaaS boilerplates give you one fixed stack. You either use it or you don't.
   ❯ Resend
     Nodemailer
 
-✓ Auth: supabase injected.
+? Payment provider
+  ❯ Stripe
+    DODO Payments
+
+✓ Database: Drizzle ORM + PostgreSQL injected.
+✓ Auth: supabase auth injected.
 ✓ Email: resend injected.
+✓ Payment: Stripe injected.
 ✓ Your SaaS is scaffolded.
 ```
 
@@ -55,10 +65,10 @@ Every scaffold includes:
 
 ```bash
 # Create a new project
-npx @shipindays/shipindays@latest my-app
+npx create-shipindays-app@latest mysaas
 
 # Move into it
-cd my-app
+cd mysaas
 
 # Copy env file and fill in your keys
 cp .env.example .env.local
@@ -76,8 +86,10 @@ npm run dev
 
 | Feature | Providers |
 |---------|-----------|
+| Database    | Drizzle ORM + PostgreSQL, Prisma ORM + PostgreSQL |
 | Auth    | Supabase Auth, NextAuth v5 |
-| Email   | Resend, Nodemailer |
+| Email   | Resend, Mailgun |
+| Payments   | Stripe, Dodo Payments |
 
 More coming. PRs welcome — see [Contributing](#contributing).
 
@@ -141,7 +153,7 @@ create-shipindays/
 └── templates/
     ├── base/                        ← always scaffolded first
     │   └── src/
-    │       ├── middleware.ts        ← placeholder
+    │       ├── proxy.ts        ← placeholder
     │       ├── lib/
     │       │   ├── auth/index.ts    ← placeholder
     │       │   └── email/index.ts   ← placeholder
@@ -156,7 +168,7 @@ create-shipindays/
         │   ├── supabase/            ← injected when user picks Supabase Auth
         │   │   ├── package.json
         │   │   └── src/
-        │   │       ├── middleware.ts
+        │   │       ├── proxy.ts
         │   │       ├── lib/auth/index.ts
         │   │       └── lib/supabase/
         │   │           ├── server.ts
@@ -165,7 +177,7 @@ create-shipindays/
         │   └── nextauth/            ← injected when user picks NextAuth v5
         │       ├── package.json
         │       └── src/
-        │           ├── middleware.ts
+        │           ├── proxy.ts
         │           ├── lib/auth/index.ts
         │           └── app/api/auth/
         │               └── [...nextauth]/
@@ -174,10 +186,12 @@ create-shipindays/
         └── email/
             ├── resend/
             │   ├── package.json
-            │   └── index.ts
-            └── nodemailer/
+            │   └── src
+            |       ├──index.ts
+            └── mailgun/
                 ├── package.json
-                └── index.ts
+                └── src
+                    ├──index.ts
 ```
 
 ---
@@ -293,7 +307,7 @@ templates/blocks/auth/myauth/
     lib/
       auth/
         index.ts                ← replaces base placeholder (required)
-    middleware.ts               ← replaces base placeholder (required)
+    proxy.ts               ← replaces base placeholder (required)
 ```
 
 **Step 2 — Add any extra files your provider needs inside `src/`**
@@ -309,7 +323,7 @@ templates/blocks/auth/myauth/
       myauth/
         server.ts               ← EXTRA file — doesn't exist in base, gets created
         client.ts               ← EXTRA file — doesn't exist in base, gets created
-    middleware.ts               ← replaces base placeholder
+    proxy.ts               ← replaces base placeholder
 ```
 
 For example, if your provider needs an API route:
@@ -320,7 +334,7 @@ templates/blocks/auth/myauth/
     lib/
       auth/
         index.ts
-    middleware.ts
+    proxy.ts
     app/
       api/
         auth/
@@ -334,7 +348,7 @@ No matter what else your block does internally, `src/lib/auth/index.ts` must exp
 
 ```ts
 // Every auth block MUST export these 3 functions with these exact signatures.
-// The dashboard, middleware, and login page call these — they never change.
+// The dashboard, proxy, and login page call these — they never change.
 
 export async function getCurrentUser(): Promise<User | null>
 // Returns the logged-in user, or null if not logged in.
@@ -396,7 +410,7 @@ EMAIL blocks:
 
 AUTH blocks:
   Copies block's src/ folder → project/src/
-  e.g. blocks/auth/nextauth/src/middleware.ts → project/src/middleware.ts
+  e.g. blocks/auth/nextauth/src/proxy.ts → project/src/proxy.ts
        blocks/auth/nextauth/src/lib/auth/index.ts → project/src/lib/auth/index.ts
        blocks/auth/nextauth/src/app/api/auth/[...nextauth]/route.ts → project/src/app/api/auth/[...nextauth]/route.ts
 ```
