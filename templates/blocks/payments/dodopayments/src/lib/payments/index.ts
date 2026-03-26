@@ -9,13 +9,29 @@ const dodo = new DodoPayments({
 
 export const billing = {
     // Create checkout link
-    createCheckout: async (priceId: string, email: string) => {
-        const checkout = await dodo.checkouts.create({
-            product_id: priceId,
-            customer: { email },
-            billing_address: { country: "US" },
-            return_url: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard`,
-        });
+    createCheckout: async (productId: string, email: string, userId: string) => {
+        // const checkout = await dodo.checkoutSessions.create({
+        //     product_id: priceId,
+        //     customer: { email },
+        //     billing_address: { country: "US" },
+        //     return_url: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard`,
+        // });
+        const checkout = await dodo.checkoutSessions.create({
+            product_cart: [
+                {
+                    product_id: productId,
+                    quantity: 1,
+                }
+            ],
+            customer: {
+                email: email,
+            },
+            metadata: {
+                userId,
+                productId: productId,
+                env: ENVIRONMENT,
+            },
+        })
         return { url: checkout.url, id: checkout.checkout_id };
     },
 
