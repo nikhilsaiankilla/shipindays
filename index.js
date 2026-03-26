@@ -251,7 +251,7 @@ const ENV_VARS = {
         "NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=",
       ],
       "# Stripe Pricing": [
-        "NEXT_PUBLIC_STRIPE_PRICE_ID_BASIC=",
+        "NEXT_PUBLIC_DODO_PRICE_ID_STARTER=",
         "NEXT_PUBLIC_STRIPE_PRICE_ID_PRO=",
       ],
     },

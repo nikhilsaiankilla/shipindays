@@ -9,7 +9,7 @@ const dodo = new DodoPayments({
 
 export const billing = {
     // Create checkout link
-    createCheckout: async (productId: string, email: string, userId: string) => {
+    createCheckout: async (productId: string, email: string, userId: string, txnId: string) => {
         // const checkout = await dodo.checkoutSessions.create({
         //     product_id: priceId,
         //     customer: { email },
@@ -30,14 +30,16 @@ export const billing = {
                 userId,
                 productId: productId,
                 env: ENVIRONMENT,
+                txnId: txnId,
             },
+            return_url: `${process.env.NEXT_PUBLIC_BASE_URL}/home`,
         })
-        return { url: checkout.url, id: checkout.checkout_id };
+        return checkout;
     },
 
     // Get simplified status
     getSubscriptionStatus: async (subscriptionId: string) => {
-        const sub = await dodo.subscriptions.get(subscriptionId);
+        const sub = await dodo.subscriptions.retrieve(subscriptionId);
         return {
             status: sub.status, // active, cancelled, past_due
             nextBillingDate: sub.next_billing_date,
@@ -46,12 +48,14 @@ export const billing = {
 
     // Cancel
     cancelSubscription: async (subscriptionId: string) => {
-        return await dodo.subscriptions.cancel(subscriptionId);
+        return await await dodo.subscriptions.update(subscriptionId, {
+            cancel_at_next_billing_date: true
+        });
     },
 
     // Get Portal URL
     getPortalUrl: async (customerId: string) => {
-        const customer = await dodo.customers.get(customerId);
-        return customer.portal_url;
+        const customer = await dodo.customers.retrieve(customerId);
+        return customer;
     }
 };

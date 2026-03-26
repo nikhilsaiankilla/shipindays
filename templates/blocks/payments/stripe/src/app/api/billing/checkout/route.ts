@@ -3,7 +3,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { billing } from "@/src/lib/payments"; // adjust path if needed
 import { getSupabaseServerClient } from "@/src/lib/auth/server";
-import { getUser } from "@/src/db/db-helpers";
+import { createPayment, getUser } from "@/src/db/db-helpers";
 
 export const GET = async (req: NextRequest) => {
     try {
@@ -31,16 +31,30 @@ export const GET = async (req: NextRequest) => {
 
         // 3. Get priceId from query
         const { searchParams } = new URL(req?.url);
-        const priceId = searchParams.get("priceId");
+        const productId = searchParams.get("productId");
 
-        if (!priceId) {
-            return NextResponse.json({ error: "Missing priceId" }, { status: 400 });
+        if (!productId || productId.trim() === "") {
+            return NextResponse.json({ error: "Invalid productId" }, { status: 400 });
         }
+
+        const txnId = crypto.randomUUID();
+
+        // 5. Create pending payment (IMPORTANT)
+        await createPayment({
+            id: txnId,
+            userId: dbUser.id,
+            amount: 0, // unknown at checkout
+            currency: "USD",
+            status: "pending",
+        });
+
 
         // 4. Create checkout
         const checkout = await billing.createCheckout(
-            priceId,
-            dbUser?.email
+            productId,
+            dbUser?.email,
+            dbUser?.id,
+            txnId
         );
 
         return NextResponse.json(checkout);

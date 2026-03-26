@@ -1,3 +1,5 @@
+// FILE: src/app/api/webhooks/stripe/route.ts
+
 import { stripe } from "@/src/lib/stripe";
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
@@ -8,7 +10,7 @@ import {
     upsertSubscription,
     updateSubscriptionById,
     expireSubscription,
-    createPayment,
+    updatePaymentById,
     createWebhookEvent,
     hasWebhookEvent,
 } from "@/src/db/db-helpers";
@@ -18,7 +20,7 @@ export async function POST(req: Request) {
         const body = await req.text();
         const headerList = await headers();
 
-        const signature = headerList.get("Stripe-Signature") as string;
+        const signature = headerList.get("Stripe-Signature");
         const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
 
         if (!signature || !webhookSecret) {
@@ -46,7 +48,7 @@ export async function POST(req: Request) {
             return new NextResponse("Already processed", { status: 200 });
         }
 
-        // 3. Store event
+        // 3. Store event early
         await createWebhookEvent({
             id: webhookId,
             type: event.type,
@@ -54,16 +56,16 @@ export async function POST(req: Request) {
 
         const data = event.data.object;
 
-        // 4. Handle events
+        // HANDLERS
         switch (event.type) {
-            // FIRST SUBSCRIPTION CREATE (Checkout)
+
+            // SUBSCRIPTION CREATED (via checkout)
             case "checkout.session.completed": {
                 const session = data as Stripe.Checkout.Session;
 
                 if (session.mode !== "subscription") break;
 
                 const subscriptionId = session.subscription as string;
-
                 const userId = session.metadata?.userId;
 
                 if (!userId) {
@@ -81,7 +83,7 @@ export async function POST(req: Request) {
                     break;
                 }
 
-                // Fetch full subscription (important)
+                // Fetch full subscription
                 const subscription = await stripe.subscriptions.retrieve(
                     subscriptionId
                 );
@@ -101,7 +103,7 @@ export async function POST(req: Request) {
                 break;
             }
 
-            // RENEWALS
+            // RENEWALS (subscription payment success)
             case "invoice.payment_succeeded": {
                 const invoice = data as Stripe.Invoice;
 
@@ -109,7 +111,6 @@ export async function POST(req: Request) {
 
                 const subscriptionId = invoice.subscription as string;
 
-                // Fetch latest subscription state
                 const subscription = await stripe.subscriptions.retrieve(
                     subscriptionId
                 );
@@ -132,7 +133,7 @@ export async function POST(req: Request) {
                 break;
             }
 
-            // PLAN CHANGE / UPDATE
+            // PLAN UPDATE
             case "customer.subscription.updated": {
                 const subscription = data as Stripe.Subscription;
 
@@ -159,27 +160,55 @@ export async function POST(req: Request) {
                 const subscription = data as Stripe.Subscription;
 
                 await expireSubscription(subscription.id);
-
                 break;
             }
 
-            // ONE TIME PAYMENT
+            // PAYMENT SUCCESS (CRITICAL FIX)
             case "payment_intent.succeeded": {
                 const paymentIntent = data as Stripe.PaymentIntent;
 
                 const userId = paymentIntent.metadata?.userId;
+                const txnId = paymentIntent.metadata?.txnId;
 
                 if (!userId) {
                     console.error("Missing userId in metadata");
                     break;
                 }
 
-                await createPayment({
-                    id: paymentIntent.id,
-                    userId,
-                    amount: paymentIntent.amount,
-                    currency: paymentIntent.currency,
-                    status: "success",
+                if (!txnId) {
+                    console.error("Missing txnId in metadata");
+                    break;
+                }
+
+                await updatePaymentById({
+                    id: txnId, // internal ID
+                    data: {
+                        providerTxnId: paymentIntent.id, // stripe ID
+                        amount: paymentIntent.amount,
+                        currency: paymentIntent.currency,
+                        status: "succeeded",
+                    },
+                });
+
+                break;
+            }
+
+            // PAYMENT FAILED (you should handle this too)
+            case "payment_intent.payment_failed": {
+                const paymentIntent = data as Stripe.PaymentIntent;
+
+                const txnId = paymentIntent.metadata?.txnId;
+
+                if (!txnId) {
+                    console.error("Missing txnId");
+                    break;
+                }
+
+                await updatePaymentById({
+                    id: txnId,
+                    data: {
+                        status: "failed",
+                    },
                 });
 
                 break;
@@ -190,6 +219,7 @@ export async function POST(req: Request) {
         }
 
         return new NextResponse("Webhook processed", { status: 200 });
+
     } catch (err) {
         console.error("Stripe webhook error:", err);
         return new NextResponse("Webhook failed", { status: 500 });

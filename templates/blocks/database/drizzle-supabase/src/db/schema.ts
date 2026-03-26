@@ -49,6 +49,9 @@ export const subscriptions = pgTable("subscriptions", {
 // 3. PAYMENTS (Transaction History)
 export const payments = pgTable("payments", {
     id: varchar("id", { length: 255 }).primaryKey(), // Provider Transaction ID
+
+    providerTxnId: varchar("provider_txn_id", { length: 255 }).unique(),
+    
     userId: uuid("user_id").references(() => users.id, { onDelete: 'cascade' }).notNull(),
     
     amount: integer("amount").notNull(), // In cents

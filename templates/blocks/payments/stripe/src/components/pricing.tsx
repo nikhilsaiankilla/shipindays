@@ -4,23 +4,33 @@
 
 import { useState } from "react";
 import { PRICING_PLANS } from "@/src/config/pricing";
+import { useRouter } from "next/navigation";
 
 export default function PricingSection() {
     const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
+    const router = useRouter();
 
-    const handleCheckout = async (planId: string) => {
+    const handleCheckout = async (productId: string) => {
+        if (!productId) {
+            alert("Pricing is not configured properly");
+            return;
+        }
+
         try {
-            setLoadingPlan(planId);
+            setLoadingPlan(productId);
 
-            const res = await fetch(`/api/billing/checkout?plan=${planId}`);
+            const res = await fetch(`/api/billing/checkout?productId=${productId}`);
             const data = await res.json();
 
             if (!res.ok) {
                 throw new Error(data.error || "Failed");
             }
 
-            // redirect to Dodo checkout
-            window.location.href = data.url;
+            if (!data?.checkout_url) {
+                throw new Error("checkout url is missing!!");
+            }
+
+            router.push(data?.checkout_url)
         } catch (err) {
             console.error(err);
             alert("Something went wrong");
@@ -53,10 +63,10 @@ export default function PricingSection() {
 
                         <button
                             onClick={() => handleCheckout(plan?.productId)}
-                            disabled={loadingPlan === plan?.productId}
+                            disabled={loadingPlan === plan.productId}
                             className="mt-6 bg-black text-white py-2 rounded-lg disabled:opacity-50"
                         >
-                            {loadingPlan === plan?.productId ? "Redirecting..." : "Get Started"}
+                            {loadingPlan === plan.productId ? "Redirecting..." : "Get Started"}
                         </button>
                     </div>
                 ))}

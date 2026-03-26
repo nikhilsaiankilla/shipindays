@@ -9,6 +9,7 @@ import {
     createPayment,
     createWebhookEvent,
     hasWebhookEvent,
+    updatePaymentById
 } from "@/src/db/db-helpers";
 
 const ENVIRONMENT = process.env.DODO_ENV === "live" ? "live" : "test";
@@ -19,13 +20,165 @@ const dodo = new DodoPayments({
     webhookKey: process.env.DODO_PAYMENTS_WEBHOOK_KEY!,
 });
 
+// TYPES
+type SubscriptionEventData = {
+    subscription_id: string;
+    product_id?: string;
+    next_billing_date: string;
+    cancel_at_next_billing_date?: boolean;
+    status?: string;
+    metadata?: {
+        userId?: string;
+        txnId?: string;
+    };
+};
+
+type OrderSuccessData = {
+    order_id: string;
+    total_amount: number;
+    currency?: string;
+    metadata?: {
+        userId?: string;
+        txnId?: string;
+    };
+};
+
+// HANDLERS
+async function handleSubscriptionActive(data: SubscriptionEventData) {
+    const subscriptionId = data.subscription_id;
+    const productId = data.product_id ?? "default";
+    const nextBillingDate = new Date(data.next_billing_date);
+    const cancelAtPeriodEnd = data.cancel_at_next_billing_date ?? false;
+    const userId = data.metadata?.userId;
+
+    if (!subscriptionId) {
+        console.error("Missing subscriptionId");
+        return;
+    }
+
+    if (!userId) {
+        console.error("Missing userId in metadata");
+        return;
+    }
+
+    const user = await getUser({
+        field: "id",
+        value: userId,
+    });
+
+    if (!user) {
+        console.error("User not found:", userId);
+        return;
+    }
+
+    await upsertSubscription({
+        id: subscriptionId,
+        userId: user.id,
+        planId: productId,
+        status: "active",
+        currentPeriodEnd: nextBillingDate,
+        cancelAtPeriodEnd,
+    });
+}
+
+
+async function handleSubscriptionCancelled(data: SubscriptionEventData) {
+    const subscriptionId = data.subscription_id;
+
+    if (!subscriptionId) {
+        console.error("Missing subscriptionId");
+        return;
+    }
+
+    await expireSubscription(subscriptionId);
+}
+
+
+async function handleSubscriptionUpdated(data: SubscriptionEventData) {
+    const subscriptionId = data.subscription_id;
+    const productId = data.product_id ?? "default";
+    const nextBillingDate = new Date(data.next_billing_date);
+    const cancelAtPeriodEnd = data.cancel_at_next_billing_date ?? false;
+    const status = data.status ?? "active";
+
+    if (!subscriptionId) {
+        console.error("Missing subscriptionId");
+        return;
+    }
+
+    await updateSubscriptionById({
+        id: subscriptionId,
+        data: {
+            planId: productId,
+            status,
+            currentPeriodEnd: nextBillingDate,
+            cancelAtPeriodEnd,
+        },
+    });
+}
+
+
+async function handleOrderSuccess(data: OrderSuccessData) {
+    const orderId = data.order_id;
+    const amount = data.total_amount;
+    const currency = data.currency ?? "USD";
+
+    const userId = data.metadata?.userId;
+    const txnId = data.metadata?.txnId;
+
+    if (!orderId) {
+        console.error("Missing orderId");
+        return;
+    }
+
+    if (!userId) {
+        console.error("Missing userId in metadata");
+        return;
+    }
+
+    if (!amount) {
+        console.error("Missing amount");
+        return;
+    }
+
+    // Prefer txnId (your internal tracking)
+    const paymentId = txnId || orderId;
+
+    await createPayment({
+        id: paymentId,
+        userId,
+        amount,
+        currency,
+        status: "success",
+    });
+}
+
+function isSubscriptionData(data: any): data is SubscriptionEventData {
+    return typeof data?.subscription_id === "string";
+}
+
+function isOrderSuccessData(data: any): data is OrderSuccessData {
+    return (
+        typeof data?.order_id === "string" &&
+        typeof data?.total_amount === "number"
+    );
+}
+
+// ================= MAIN ROUTE =================
+
 export async function POST(req: Request) {
     try {
         const rawBody = await req.text();
 
-        const webhookId = req.headers.get("webhook-id")!;
-        const signature = req.headers.get("webhook-signature")!;
-        const timestamp = req.headers.get("webhook-timestamp")!;
+        const webhookId = req.headers.get("webhook-id");
+        const signature = req.headers.get("webhook-signature");
+        const timestamp = req.headers.get("webhook-timestamp");
+
+        // Validate headers
+        if (!webhookId || !signature || !timestamp) {
+            console.error("Missing webhook headers");
+            return new NextResponse("Invalid headers", { status: 400 });
+        }
 
         // 1. Verify webhook
         const event = dodo.webhooks.unwrap(rawBody, {
@@ -46,113 +199,89 @@ export async function POST(req: Request) {
             return new NextResponse("Already processed", { status: 200 });
         }
 
-        const data = event.data;
-
-        // 3. Store event
+        // 3. Store event early
         await createWebhookEvent({
             id: webhookId,
             type: event.type,
         });
 
-        // 4. Handle events
-        switch (event.type) {
-            // SUB CREATED / RENEWED
-            case "subscription.active": {
-                const metadata = data?.metadata ?? {};
-                const userId = metadata?.userId;
+        const data = event.data;
 
-                if (!userId) {
-                    console.error("Missing userId in metadata");
-                    break;
+        if (!data) {
+            console.error("Missing event data");
+            return new NextResponse("Invalid data", { status: 400 });
+        }
+
+        const eventType = event.type as string;
+
+        switch (eventType) {
+
+            case "payment.success": {
+                const txnId = data.metadata?.txnId;
+
+                if (!txnId) {
+                    console.error("Missing txnId");
+                    return;
                 }
 
-                const user = await getUser({
-                    field: "id",
-                    value: userId,
-                });
-
-                if (!user) {
-                    console.error("User not found:", userId);
-                    break;
-                }
-
-                await upsertSubscription({
-                    id: data.subscription_id,
-                    userId: user.id,
-                    planId: data.product_id || "default",
-                    status: "active",
-                    currentPeriodEnd: new Date(data.next_billing_date),
-                    cancelAtPeriodEnd:
-                        data.cancel_at_next_billing_date ?? false,
-                });
-
-                break;
-            }
-
-            // CANCELLED / EXPIRED
-            case "subscription.cancelled":
-            case "subscription.expired": {
-                const subId = data.subscription_id;
-
-                if (!subId) {
-                    console.error("Missing subscription_id");
-                    break;
-                }
-
-                await expireSubscription(subId);
-
-                break;
-            }
-
-            // PLAN CHANGE / UPDATE
-            case "subscription.updated": {
-                const subId = data.subscription_id;
-
-                if (!subId) {
-                    console.error("Missing subscription_id");
-                    break;
-                }
-
-                await updateSubscriptionById({
-                    id: subId,
+                await updatePaymentById({
+                    id: txnId,
                     data: {
-                        planId: data.product_id,
-                        status: data.status || "active",
-                        currentPeriodEnd: new Date(data.next_billing_date),
-                        cancelAtPeriodEnd:
-                            data.cancel_at_next_billing_date ?? false,
+                        providerTxnId: data.order_id,
+                        amount: data.total_amount,
+                        currency: data.currency || "USD",
+                        status: "succeeded",
                     },
                 });
-
-                break;
             }
 
-            // ONE-TIME PAYMENT
-            case "order.success": {
-                const metadata = data?.metadata ?? {};
-                const userId = metadata?.userId;
-
-                if (!userId) {
-                    console.error("Missing userId in metadata");
+            case "subscription.active": {
+                if (!isSubscriptionData(data)) {
+                    console.error("Invalid subscription.active payload");
                     break;
                 }
 
-                await createPayment({
-                    id: data.order_id,
-                    userId,
-                    amount: data.total_amount,
-                    currency: data.currency || "USD",
-                    status: "success",
-                });
+                await handleSubscriptionActive(data);
+                break;
+            }
 
+            case "subscription.cancelled":
+            case "subscription.expired": {
+                if (!isSubscriptionData(data)) {
+                    console.error("Invalid subscription cancel payload");
+                    break;
+                }
+
+                await handleSubscriptionCancelled(data);
+                break;
+            }
+
+            case "subscription.updated": {
+                if (!isSubscriptionData(data)) {
+                    console.error("Invalid subscription.updated payload");
+                    break;
+                }
+
+                await handleSubscriptionUpdated(data);
+                break;
+            }
+
+            case "order.success": {
+                if (!isOrderSuccessData(data)) {
+                    console.error("Invalid order.success payload");
+                    break;
+                }
+
+                await handleOrderSuccess(data);
                 break;
             }
 
             default:
-                console.log(`Unhandled event: ${event.type}`);
+                console.log(`Unhandled event: ${eventType}`);
         }
 
         return new NextResponse("Webhook processed", { status: 200 });
+
     } catch (err) {
         console.error("Webhook error:", err);
         return new NextResponse("Webhook failed", { status: 500 });

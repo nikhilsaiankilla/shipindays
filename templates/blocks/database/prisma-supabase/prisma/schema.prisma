@@ -8,21 +8,21 @@ datasource db {
 }
 
 model User {
-  id            String   @id @default(uuid())
-  email         String   @unique @db.VarChar(255)
-  name          String?  @db.VarChar(255)
-  image         String?
+  id    String  @id @default(uuid())
+  email String  @unique @db.VarChar(255)
+  name  String? @db.VarChar(255)
+  image String?
 
   // Auth
-  authId        String   @unique @map("auth_id") @db.VarChar(255)
+  authId String @unique @map("auth_id") @db.VarChar(255)
 
   // Tracking
-  loginCount    Int      @default(0) @map("login_count")
-  lastLoginAt   DateTime? @map("last_login_at")
+  loginCount  Int       @default(0) @map("login_count")
+  lastLoginAt DateTime? @map("last_login_at")
 
   // Timestamps
-  createdAt     DateTime @default(now()) @map("created_at")
-  updatedAt     DateTime @updatedAt @map("updated_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   // Relations
   subscription  Subscription?
@@ -35,44 +35,46 @@ model User {
 }
 
 model Subscription {
-  id                   String   @id @db.VarChar(255)
-  userId               String   @unique @map("user_id")
+  id     String @id @db.VarChar(255)
+  userId String @unique @map("user_id")
 
-  planId               String   @map("plan_id") @db.VarChar(255)
-  status               String   @db.VarChar(50)
+  planId String @map("plan_id") @db.VarChar(255)
+  status String @db.VarChar(50)
 
-  currentPeriodEnd     DateTime @map("current_period_end")
-  cancelAtPeriodEnd    Boolean  @default(false) @map("cancel_at_period_end")
+  currentPeriodEnd  DateTime @map("current_period_end")
+  cancelAtPeriodEnd Boolean  @default(false) @map("cancel_at_period_end")
 
-  createdAt            DateTime @default(now()) @map("created_at")
-  updatedAt            DateTime @updatedAt @map("updated_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   // Relations
-  user                 User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("subscriptions")
 }
 
 model Payment {
-  id        String   @id @db.VarChar(255)
-  userId    String   @map("user_id")
+  id     String @id @db.VarChar(255)
+  userId String @map("user_id")
 
-  amount    Int
-  currency  String   @default("USD") @db.VarChar(10)
-  status    String   @db.VarChar(50)
+  providerTxnId String? @unique @map("provider_txn_id") @db.VarChar(255)
+
+  amount   Int
+  currency String @default("USD") @db.VarChar(10)
+  status   String @db.VarChar(50)
 
   createdAt DateTime @default(now()) @map("created_at")
 
   // Relations
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId], map: "payment_user_idx")
   @@map("payments")
 }
 
 model WebhookEvent {
-  id        String   @id @db.VarChar(255)
-  type      String   @db.VarChar(100)
+  id   String @id @db.VarChar(255)
+  type String @db.VarChar(100)
 
   createdAt DateTime @default(now()) @map("created_at")
 
@@ -80,14 +82,14 @@ model WebhookEvent {
 }
 
 model Notification {
-  id        String   @id @default(uuid())
-  userId    String   @map("user_id")
+  id     String @id @default(uuid())
+  userId String @map("user_id")
 
-  type      String   @db.VarChar(100)
-  sentAt    DateTime @default(now()) @map("sent_at")
+  type   String   @db.VarChar(100)
+  sentAt DateTime @default(now()) @map("sent_at")
 
   // Relations
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId], map: "notification_user_idx")
   @@map("notifications")

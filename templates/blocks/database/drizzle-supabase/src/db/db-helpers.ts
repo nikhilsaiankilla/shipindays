@@ -90,6 +90,117 @@ export async function createSubscription({
   return sub;
 }
 
+export async function upsertSubscription({
+  id,
+  userId,
+  planId,
+  status,
+  currentPeriodEnd,
+  cancelAtPeriodEnd = false,
+}: {
+  id: string;
+  userId: string;
+  planId: string;
+  status: string;
+  currentPeriodEnd: Date;
+  cancelAtPeriodEnd?: boolean;
+}) {
+  const [sub] = await db
+    .insert(subscriptions)
+    .values({
+      id,
+      userId,
+      planId,
+      status,
+      currentPeriodEnd,
+      cancelAtPeriodEnd,
+    })
+    .onConflictDoUpdate({
+      target: subscriptions.userId, // key point (unique user)
+      set: {
+        id,
+        planId,
+        status,
+        currentPeriodEnd,
+        cancelAtPeriodEnd,
+        updatedAt: new Date(),
+      },
+    })
+    .returning();
+
+  return sub;
+}
+
+export async function updateSubscriptionById({
+  id,
+  data,
+}: {
+  id: string;
+  data: Partial<{
+    planId: string;
+    status: string;
+    currentPeriodEnd: Date;
+    cancelAtPeriodEnd: boolean;
+  }>;
+}) {
+  const [sub] = await db
+    .update(subscriptions)
+    .set({
+      ...data,
+      updatedAt: new Date(),
+    })
+    .where(eq(subscriptions.id, id))
+    .returning();
+
+  return sub ?? null;
+}
+
+export async function updateSubscriptionByUserId({
+  userId,
+  data,
+}: {
+  userId: string;
+  data: Partial<{
+    planId: string;
+    status: string;
+    currentPeriodEnd: Date;
+    cancelAtPeriodEnd: boolean;
+  }>;
+}) {
+  const [sub] = await db
+    .update(subscriptions)
+    .set({
+      ...data,
+      updatedAt: new Date(),
+    })
+    .where(eq(subscriptions.userId, userId))
+    .returning();
+
+  return sub ?? null;
+}
+
+export async function getSubscriptionByUserId(userId: string) {
+  const [sub] = await db
+    .select()
+    .from(subscriptions)
+    .where(eq(subscriptions.userId, userId));
+
+  return sub ?? null;
+}
+
+export async function expireSubscription(id: string) {
+  const [sub] = await db
+    .update(subscriptions)
+    .set({
+      status: "expired",
+      updatedAt: new Date(),
+    })
+    .where(eq(subscriptions.id, id))
+    .returning();
+
+  return sub ?? null;
+}
+
 // create payments 
 export async function createPayment({
   id,
@@ -180,114 +291,26 @@ export async function updateUserLogin({
   return user;
 }
 
-
-export async function upsertSubscription({
-  id,
-  userId,
-  planId,
-  status,
-  currentPeriodEnd,
-  cancelAtPeriodEnd = false,
-}: {
-  id: string;
-  userId: string;
-  planId: string;
-  status: string;
-  currentPeriodEnd: Date;
-  cancelAtPeriodEnd?: boolean;
-}) {
-  const [sub] = await db
-    .insert(subscriptions)
-    .values({
-      id,
-      userId,
-      planId,
-      status,
-      currentPeriodEnd,
-      cancelAtPeriodEnd,
-    })
-    .onConflictDoUpdate({
-      target: subscriptions.userId, // key point (unique user)
-      set: {
-        id,
-        planId,
-        status,
-        currentPeriodEnd,
-        cancelAtPeriodEnd,
-        updatedAt: new Date(),
-      },
-    })
-    .returning();
-
-  return sub;
-}
-
-export async function updateSubscriptionById({
+export async function updatePaymentById({
   id,
   data,
 }: {
   id: string;
   data: Partial<{
-    planId: string;
+    providerTxnId: string;
+    amount: number;
+    currency: string;
     status: string;
-    currentPeriodEnd: Date;
-    cancelAtPeriodEnd: boolean;
   }>;
 }) {
-  const [sub] = await db
-    .update(subscriptions)
+  const [payment] = await db
+    .update(payments)
     .set({
       ...data,
       updatedAt: new Date(),
     })
-    .where(eq(subscriptions.id, id))
+    .where(eq(payments.id, id))
     .returning();
 
-  return sub ?? null;
-}
-
-export async function getSubscriptionByUserId(userId: string) {
-  const [sub] = await db
-    .select()
-    .from(subscriptions)
-    .where(eq(subscriptions.userId, userId));
-
-  return sub ?? null;
-}
-
-export async function expireSubscription(id: string) {
-  const [sub] = await db
-    .update(subscriptions)
-    .set({
-      status: "expired",
-      updatedAt: new Date(),
-    })
-    .where(eq(subscriptions.id, id))
-    .returning();
-
-  return sub ?? null;
-}
-
-export async function updateSubscriptionByUserId({
-  userId,
-  data,
-}: {
-  userId: string;
-  data: Partial<{
-    planId: string;
-    status: string;
-    currentPeriodEnd: Date;
-    cancelAtPeriodEnd: boolean;
-  }>;
-}) {
-  const [sub] = await db
-    .update(subscriptions)
-    .set({
-      ...data,
-      updatedAt: new Date(),
-    })
-    .where(eq(subscriptions.userId, userId))
-    .returning();
-
-  return sub ?? null;
+  return payment ?? null;
 }

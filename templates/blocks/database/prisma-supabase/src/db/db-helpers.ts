@@ -245,3 +245,25 @@ export async function updateUserLogin({
     },
   });
 }
+
+export async function updatePaymentById({
+  id,
+  data,
+}: {
+  id: string;
+  data: Partial<{
+    providerTxnId: string;
+    amount: number;
+    currency: string;
+    status: string;
+  }>;
+}) {
+  return prisma.payment
+    .update({
+      where: { id },
+      data: {
+        ...data,
+      },
+    })
+    .catch(() => null); // prevents crash if payment not found
+}
