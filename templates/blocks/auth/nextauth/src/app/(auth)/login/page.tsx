@@ -1,5 +1,5 @@
 import React from 'react'
-import LoginBox from '@/src/components/login-box'
+import LoginBox from '../../components/login-box'
 
 const page = () => {
     return (

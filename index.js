@@ -95,11 +95,11 @@ const DATABASE_PROVIDERS = {
     hint: "Lightweight SQL-first ORM using Supabase Postgres",
     url: "supabase.com",
   },
-  prisma: {
-    label: "Prisma ORM + PostgreSQL",
-    hint: "Type-safe ORM with migrations & powerful client",
-    url: "prisma.io",
-  },
+  // prisma: {
+  //   label: "Prisma ORM + PostgreSQL",
+  //   hint: "Type-safe ORM with migrations & powerful client",
+  //   url: "prisma.io",
+  // },
   // Add new database providers above this line
 };
 
@@ -111,11 +111,11 @@ const AUTH_PROVIDERS = {
     hint: "Magic link + OAuth — server.ts + client.ts included",
     url: "supabase.com",
   },
-  nextauth: {
-    label: "NextAuth v5",
-    hint: "Credentials + Google + GitHub — self-hostable",
-    url: "authjs.dev",
-  },
+  // nextauth: {
+  //   label: "NextAuth v5",
+  //   hint: "Credentials + Google + GitHub — self-hostable",
+  //   url: "authjs.dev",
+  // },
   // Add new auth providers above this line
 };
 
@@ -185,11 +185,11 @@ const ENV_VARS = {
         "DATABASE_URL=",
       ],
     },
-    prisma: {
-      "# PostgreSQL connection (Supabase or any provider)": [
-        "DATABASE_URL=",
-      ],
-    },
+    // prisma: {
+    //   "# PostgreSQL connection (Supabase or any provider)": [
+    //     "DATABASE_URL=",
+    //   ],
+    // },
     // Add env vars for new database providers above
   },
 
@@ -202,15 +202,16 @@ const ENV_VARS = {
         "SUPABASE_SERVICE_ROLE_KEY=",
       ],
     },
-    nextauth: {
-      "# NextAuth": [
-        "AUTH_SECRET="
-      ],
-      "# OAuth — Google (console.cloud.google.com)": [
-        "AUTH_GOOGLE_ID=",
-        "AUTH_GOOGLE_SECRET=",
-      ],
-    },
+    // nextauth: {
+    //   "# NextAuth": [
+    //     "# openssl rand -base64 32",
+    //     "AUTH_SECRET="
+    //   ],
+    //   "# OAuth — Google (console.cloud.google.com)": [
+    //     "AUTH_GOOGLE_ID=",
+    //     "AUTH_GOOGLE_SECRET=",
+    //   ],
+    // },
     // Add env vars for new auth providers above
   },
 
@@ -271,7 +272,7 @@ const BLOCK_FOLDER_MAP = {
   database: {
     // Add folder name overrides for new database providers below
     drizzle: "drizzle-supabase",
-    prisma: "prisma-supabase",
+    // prisma: "prisma-supabase",
     // Add folder name overrides for new database providers above
   },
   auth: {
