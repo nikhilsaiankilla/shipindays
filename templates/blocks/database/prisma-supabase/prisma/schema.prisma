@@ -1,96 +1,101 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
 generator client {
-  provider = "prisma-client-js"
+    provider = "prisma-client"
+    output   = "../generated/prisma"
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+    provider = "postgresql"
 }
 
 model User {
-  id    String  @id @default(uuid())
-  email String  @unique @db.VarChar(255)
-  name  String? @db.VarChar(255)
-  image String?
+    id    String  @id @default(uuid())
+    email String  @unique @db.VarChar(255)
+    name  String? @db.VarChar(255)
+    image String?
 
-  // Auth
-  authId String @unique @map("auth_id") @db.VarChar(255)
+    // Auth
+    authId String @unique @map("auth_id") @db.VarChar(255)
 
-  // Tracking
-  loginCount  Int       @default(0) @map("login_count")
-  lastLoginAt DateTime? @map("last_login_at")
+    // Tracking
+    loginCount  Int       @default(0) @map("login_count")
+    lastLoginAt DateTime? @map("last_login_at")
 
-  // Timestamps
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+    // Timestamps
+    createdAt DateTime @default(now()) @map("created_at")
+    updatedAt DateTime @updatedAt @map("updated_at")
 
-  // Relations
-  subscription  Subscription?
-  payments      Payment[]
-  notifications Notification[]
+    // Relations
+    subscription  Subscription?
+    payments      Payment[]
+    notifications Notification[]
 
-  @@index([email], map: "email_idx")
-  @@index([authId], map: "auth_id_idx")
-  @@map("users")
+    @@index([email], map: "email_idx")
+    @@index([authId], map: "auth_id_idx")
+    @@map("users")
 }
 
 model Subscription {
-  id     String @id @db.VarChar(255)
-  userId String @unique @map("user_id")
+    id     String @id @db.VarChar(255)
+    userId String @unique @map("user_id")
 
-  planId String @map("plan_id") @db.VarChar(255)
-  status String @db.VarChar(50)
+    planId String @map("plan_id") @db.VarChar(255)
+    status String @db.VarChar(50)
 
-  currentPeriodEnd  DateTime @map("current_period_end")
-  cancelAtPeriodEnd Boolean  @default(false) @map("cancel_at_period_end")
+    currentPeriodEnd  DateTime @map("current_period_end")
+    cancelAtPeriodEnd Boolean  @default(false) @map("cancel_at_period_end")
 
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+    createdAt DateTime @default(now()) @map("created_at")
+    updatedAt DateTime @updatedAt @map("updated_at")
 
-  // Relations
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+    // Relations
+    user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@map("subscriptions")
+    @@map("subscriptions")
 }
 
 model Payment {
-  id     String @id @db.VarChar(255)
-  userId String @map("user_id")
+    id     String @id @db.VarChar(255)
+    userId String @map("user_id")
 
-  providerTxnId String? @unique @map("provider_txn_id") @db.VarChar(255)
+    providerTxnId String? @unique @map("provider_txn_id") @db.VarChar(255)
 
-  amount   Int
-  currency String @default("USD") @db.VarChar(10)
-  status   String @db.VarChar(50)
+    amount   Int
+    currency String @default("USD") @db.VarChar(10)
+    status   String @db.VarChar(50)
 
-  createdAt DateTime @default(now()) @map("created_at")
+    createdAt DateTime @default(now()) @map("created_at")
 
-  // Relations
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+    // Relations
+    user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@index([userId], map: "payment_user_idx")
-  @@map("payments")
+    @@index([userId], map: "payment_user_idx")
+    @@map("payments")
 }
 
 model WebhookEvent {
-  id   String @id @db.VarChar(255)
-  type String @db.VarChar(100)
+    id   String @id @db.VarChar(255)
+    type String @db.VarChar(100)
 
-  createdAt DateTime @default(now()) @map("created_at")
+    createdAt DateTime @default(now()) @map("created_at")
 
-  @@map("webhook_events")
+    @@map("webhook_events")
 }
 
 model Notification {
-  id     String @id @default(uuid())
-  userId String @map("user_id")
+    id     String @id @default(uuid())
+    userId String @map("user_id")
 
-  type   String   @db.VarChar(100)
-  sentAt DateTime @default(now()) @map("sent_at")
+    type   String   @db.VarChar(100)
+    sentAt DateTime @default(now()) @map("sent_at")
 
-  // Relations
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+    // Relations
+    user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@index([userId], map: "notification_user_idx")
-  @@map("notifications")
+    @@index([userId], map: "notification_user_idx")
+    @@map("notifications")
 }

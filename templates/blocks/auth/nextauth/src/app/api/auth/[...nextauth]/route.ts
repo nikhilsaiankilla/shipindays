@@ -15,6 +15,39 @@
 // Without this file Google OAuth CANNOT complete — the callback has nowhere to land.
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { handlers } from "@/src/lib/auth";
+import NextAuth from "next-auth"
+import Google from "next-auth/providers/google"
+
+export const { handlers, auth, signIn, signOut } = NextAuth({
+    providers: [
+        Google({
+            clientId: process.env.AUTH_GOOGLE_ID!,
+            clientSecret: process.env.AUTH_GOOGLE_SECRET!,
+        }),
+    ],
+
+    secret: process.env.AUTH_SECRET,
+
+    session: {
+        strategy: "jwt",
+    },
+
+    callbacks: {
+        async jwt({ token, user }) {
+            if (user) {
+                // This is your SINGLE source of identity
+                token.id = user.id
+            }
+            return token
+        },
+
+        async session({ session, token }) {
+            if (session.user && token.id) {
+                session.user.id = token.id as string
+            }
+            return session
+        },
+    },
+})
 
 export const { GET, POST } = handlers;

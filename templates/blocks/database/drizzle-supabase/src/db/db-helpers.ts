@@ -1,12 +1,7 @@
-// src/db/index.ts
+// src/db/db-helpers.ts
+import { prisma } from '@/src/lib/prisma'
 
-import { getDb } from "@/src/db";
-import { users, subscriptions, payments, webhookEvents } from "./schema";
-import { eq, sql } from "drizzle-orm";
-
-const db = getDb();
-
-// create user 
+// USER
 export async function createUser({
   email,
   authId,
@@ -20,22 +15,17 @@ export async function createUser({
   image?: string;
   lastLoginAt?: Date;
 }) {
-  const [user] = await db
-    .insert(users)
-    .values({
+  return prisma.user.create({
+    data: {
       email,
       authId,
       name,
       image,
       lastLoginAt,
-    })
-    .returning();
-
-  return user;
+    },
+  });
 }
 
-
-// get user by id / email / authId
 export async function getUser({
   field,
   value,
@@ -43,23 +33,24 @@ export async function getUser({
   field: "id" | "email" | "authId";
   value: string;
 }) {
-  let query;
-
   if (field === "id") {
-    query = db.select().from(users).where(eq(users.id, value));
-  } else if (field === "email") {
-    query = db.select().from(users).where(eq(users.email, value));
-  } else if (field === "authId") {
-    query = db.select().from(users).where(eq(users.authId, value));
+    return prisma.user.findUnique({ where: { id: value } });
   }
 
-  if (!query) return null;
+  if (field === "email") {
+    return prisma.user.findUnique({ where: { email: value } });
+  }
 
-  const [user] = await query;
-  return user ?? null;
+  if (field === "authId") {
+    return prisma.user.findUnique({ where: { authId: value } });
+  }
+
+  return null;
 }
 
-// create SUBSCRIPTION
+// SUBSCRIPTIONS
+
+// keep but DO NOT use in webhooks
 export async function createSubscription({
   id,
   userId,
@@ -75,21 +66,19 @@ export async function createSubscription({
   currentPeriodEnd: Date;
   cancelAtPeriodEnd?: boolean;
 }) {
-  const [sub] = await db
-    .insert(subscriptions)
-    .values({
+  return prisma.subscription.create({
+    data: {
       id,
       userId,
       planId,
       status,
       currentPeriodEnd,
       cancelAtPeriodEnd,
-    })
-    .returning();
-
-  return sub;
+    },
+  });
 }
 
+// MAIN METHOD (use this everywhere)
 export async function upsertSubscription({
   id,
   userId,
@@ -105,32 +94,29 @@ export async function upsertSubscription({
   currentPeriodEnd: Date;
   cancelAtPeriodEnd?: boolean;
 }) {
-  const [sub] = await db
-    .insert(subscriptions)
-    .values({
+  return prisma.subscription.upsert({
+    where: {
+      userId, // unique constraint
+    },
+    create: {
       id,
       userId,
       planId,
       status,
       currentPeriodEnd,
       cancelAtPeriodEnd,
-    })
-    .onConflictDoUpdate({
-      target: subscriptions.userId, // key point (unique user)
-      set: {
-        id,
-        planId,
-        status,
-        currentPeriodEnd,
-        cancelAtPeriodEnd,
-        updatedAt: new Date(),
-      },
-    })
-    .returning();
-
-  return sub;
+    },
+    update: {
+      id,
+      planId,
+      status,
+      currentPeriodEnd,
+      cancelAtPeriodEnd,
+    },
+  });
 }
 
+// update by provider subscription id
 export async function updateSubscriptionById({
   id,
   data,
@@ -143,18 +129,13 @@ export async function updateSubscriptionById({
     cancelAtPeriodEnd: boolean;
   }>;
 }) {
-  const [sub] = await db
-    .update(subscriptions)
-    .set({
-      ...data,
-      updatedAt: new Date(),
-    })
-    .where(eq(subscriptions.id, id))
-    .returning();
-
-  return sub ?? null;
+  return prisma.subscription.update({
+    where: { id },
+    data,
+  }).catch(() => null); // prevent crash if not found
 }
 
+// update by userId (safer fallback)
 export async function updateSubscriptionByUserId({
   userId,
   data,
@@ -167,41 +148,30 @@ export async function updateSubscriptionByUserId({
     cancelAtPeriodEnd: boolean;
   }>;
 }) {
-  const [sub] = await db
-    .update(subscriptions)
-    .set({
-      ...data,
-      updatedAt: new Date(),
-    })
-    .where(eq(subscriptions.userId, userId))
-    .returning();
-
-  return sub ?? null;
+  return prisma.subscription.update({
+    where: { userId },
+    data,
+  }).catch(() => null);
 }
 
+// get subscription
 export async function getSubscriptionByUserId(userId: string) {
-  const [sub] = await db
-    .select()
-    .from(subscriptions)
-    .where(eq(subscriptions.userId, userId));
-
-  return sub ?? null;
+  return prisma.subscription.findUnique({
+    where: { userId },
+  });
 }
 
+// expire subscription
 export async function expireSubscription(id: string) {
-  const [sub] = await db
-    .update(subscriptions)
-    .set({
+  return prisma.subscription.update({
+    where: { id },
+    data: {
       status: "expired",
-      updatedAt: new Date(),
-    })
-    .where(eq(subscriptions.id, id))
-    .returning();
-
-  return sub ?? null;
+    },
+  }).catch(() => null);
 }
 
-// create payments 
+// PAYMENTS
 export async function createPayment({
   id,
   userId,
@@ -215,33 +185,24 @@ export async function createPayment({
   currency?: string;
   status: string;
 }) {
-  const [payment] = await db
-    .insert(payments)
-    .values({
+  return prisma.payment.create({
+    data: {
       id,
       userId,
       amount,
       currency,
       status,
-    })
-    .returning();
-
-  return payment;
+    },
+  });
 }
 
-
-//   get payment by id 
 export async function getPaymentById(id: string) {
-  const [payment] = await db
-    .select()
-    .from(payments)
-    .where(eq(payments.id, id));
-
-  return payment ?? null;
+  return prisma.payment.findUnique({
+    where: { id },
+  });
 }
 
-
-//   create webhook 
+// WEBHOOK EVENTS
 export async function createWebhookEvent({
   id,
   type,
@@ -249,29 +210,23 @@ export async function createWebhookEvent({
   id: string;
   type: string;
 }) {
-  const [event] = await db
-    .insert(webhookEvents)
-    .values({
+  return prisma.webhookEvent.create({
+    data: {
       id,
       type,
-    })
-    .returning();
-
-  return event;
+    },
+  });
 }
 
-
-//   check is webhook alredy exist 
 export async function hasWebhookEvent(id: string) {
-  const [event] = await db
-    .select()
-    .from(webhookEvents)
-    .where(eq(webhookEvents.id, id));
+  const event = await prisma.webhookEvent.findUnique({
+    where: { id },
+  });
 
   return !!event;
 }
 
-
+// USER TRACKING
 export async function updateUserLogin({
   authId,
   lastLoginAt = new Date(),
@@ -279,16 +234,15 @@ export async function updateUserLogin({
   authId: string;
   lastLoginAt?: Date;
 }) {
-  const [user] = await db
-    .update(users)
-    .set({
+  return prisma.user.update({
+    where: { authId },
+    data: {
       lastLoginAt,
-      loginCount: sql`login_count + 1`,
-    })
-    .where(eq(users.authId, authId))
-    .returning();
-
-  return user;
+      loginCount: {
+        increment: 1,
+      },
+    },
+  });
 }
 
 export async function updatePaymentById({
@@ -303,14 +257,12 @@ export async function updatePaymentById({
     status: string;
   }>;
 }) {
-  const [payment] = await db
-    .update(payments)
-    .set({
-      ...data,
-      updatedAt: new Date(),
+  return prisma.payment
+    .update({
+      where: { id },
+      data: {
+        ...data,
+      },
     })
-    .where(eq(payments.id, id))
-    .returning();
-
-  return payment ?? null;
+    .catch(() => null); // prevents crash if payment not found
 }
