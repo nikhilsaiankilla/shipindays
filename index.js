@@ -204,8 +204,7 @@ const ENV_VARS = {
     },
     nextauth: {
       "# NextAuth": [
-        "AUTH_SECRET=",
-        "NEXTAUTH_URL=http://localhost:3000",
+        "AUTH_SECRET="
       ],
       "# OAuth — Google (console.cloud.google.com)": [
         "AUTH_GOOGLE_ID=",

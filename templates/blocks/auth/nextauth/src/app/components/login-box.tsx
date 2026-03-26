@@ -1,21 +1,23 @@
 "use client";
 
 import { useState } from "react";
+import { signIn } from "next-auth/react"
 
 export default function LoginBox() {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
     async function handleGoogle() {
-        setLoading(true);
-        setError(null);
+        try {
+            setLoading(true);
+            setError(null);
 
-        const res = await fetch("/api/auth/google");
-        const data = await res.json();
+            await signIn("google", {
+                callbackUrl: "/auth/complete",
+            })
 
-        if (data.url) {
-            window.location.href = data.url;
-        } else {
+            setLoading(false);
+        } catch (error) {
             setError("Could not start Google login. Try again.");
             setLoading(false);
         }

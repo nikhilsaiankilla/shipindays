@@ -21,8 +21,7 @@ import { auth } from "../auth/[...nextauth]/route"
 
 export async function GET() {
     const appUrl =
-        process.env.AUTH_URL ??
-        process.env.NEXTAUTH_URL ??
+        process.env.NEXT_PUBLIC_APP_URL ??
         "http://localhost:3000"
 
     const session = await auth()
