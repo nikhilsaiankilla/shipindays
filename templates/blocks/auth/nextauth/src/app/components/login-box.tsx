@@ -22,83 +22,81 @@ export default function LoginBox() {
     }
 
     return (
-        <div className="w-full max-w-md mx-auto px-2">
+        <div className="w-full max-w-md mx-auto px-4">
+            {/* Card Container: Asymmetric Doodle Style */}
+            <div className="relative rounded-[15px_40px_12px_35px] border-4 border-black bg-white shadow-[12px_12px_0px_0px_#000] px-8 py-12 space-y-10">
 
-            {/* Card */}
-            <div className="rounded-2xl border bg-background/60 backdrop-blur-md shadow-sm px-8 py-10 space-y-8">
+                {/* Decorative Tape Accent */}
+                <div className="absolute -top-4 left-1/2 -translate-x-1/2 w-24 h-8 bg-blue-400/20 backdrop-blur-sm border border-blue-400/10 -rotate-2 select-none pointer-events-none" />
 
                 {/* Header */}
                 <div className="text-center space-y-3">
-                    <h1 className="text-3xl font-semibold tracking-tight">
-                        Welcome back
+                    <h1 className="text-4xl font-black tracking-tighter uppercase italic leading-none">
+                        Welcome <span className="text-orange-500">Back</span>
                     </h1>
-                    <p className="text-sm text-muted-foreground">
-                        Continue with your Google account
+                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400 italic">
+                        Session_Authentication // v1.0.4
                     </p>
                 </div>
 
-                {/* Action */}
-                <div className="space-y-4">
-
+                {/* Action Section */}
+                <div className="space-y-6">
                     <button
                         onClick={handleGoogle}
                         disabled={loading}
                         className="group w-full flex items-center justify-center gap-3 
-                            px-4 py-3 rounded-xl border text-sm font-medium 
-                            bg-white text-black hover:bg-gray-50
-                            transition-all duration-200
-                            disabled:opacity-50 disabled:cursor-not-allowed"
+                            px-4 py-4 rounded-xl border-2 border-black text-sm font-black uppercase tracking-widest
+                            bg-white text-black shadow-[4px_4px_0px_0px_#000] hover:shadow-none 
+                            hover:translate-x-1 hover:translate-y-1 active:scale-95
+                            transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                         {loading ? <Spinner /> : <GoogleIcon />}
                         Continue with Google
                     </button>
 
                     {error && (
-                        <p className="text-sm text-destructive text-center">
-                            {error}
-                        </p>
+                        <div className="bg-red-50 border-2 border-red-500 p-3 rounded-lg -rotate-1 text-center shadow-[3px_3px_0px_0px_#ef4444]">
+                            <p className="text-[10px] font-black text-red-600 uppercase italic">
+                                {error}
+                            </p>
+                        </div>
                     )}
                 </div>
 
-                {/* Divider */}
-                <div className="flex items-center gap-3">
-                    <div className="h-px flex-1 bg-border" />
-                    <span className="text-xs text-muted-foreground">
-                        secure login
+                {/* Divider: Scribble Style */}
+                <div className="flex items-center gap-4">
+                    <div className="h-[2px] flex-1 bg-black/5 rounded-full" />
+                    <span className="text-[10px] font-black text-zinc-300 uppercase tracking-widest italic">
+                        secure_login
                     </span>
-                    <div className="h-px flex-1 bg-border" />
+                    <div className="h-[2px] flex-1 bg-black/5 rounded-full" />
                 </div>
 
-                {/* Footer */}
-                <p className="text-center text-xs text-muted-foreground leading-relaxed px-2">
+                {/* Footer Link Section */}
+                <p className="text-center text-[10px] font-bold text-zinc-400 leading-tight px-4 uppercase tracking-tighter">
                     By continuing, you agree to our{" "}
                     <a
                         href="/terms"
-                        className="underline underline-offset-4 hover:text-foreground"
+                        className="text-black underline decoration-orange-500/40 decoration-2 underline-offset-4 hover:decoration-orange-500"
                     >
                         Terms
                     </a>{" "}
-                    and{" "}
+                    &{" "}
                     <a
                         href="/privacy"
-                        className="underline underline-offset-4 hover:text-foreground"
+                        className="text-black underline decoration-blue-500/40 decoration-2 underline-offset-4 hover:decoration-blue-500"
                     >
                         Privacy Policy
                     </a>
-                    .
                 </p>
             </div>
         </div>
     );
 }
 
-/* -------------------------------------------------------------------------- */
-/*                                   ICONS                                    */
-/* -------------------------------------------------------------------------- */
-
 function GoogleIcon() {
     return (
-        <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
+        <svg className="w-5 h-5 shrink-0" viewBox="0 0 24 24">
             <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
             <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
             <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
@@ -109,7 +107,7 @@ function GoogleIcon() {
 
 function Spinner() {
     return (
-        <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+        <svg className="w-5 h-5 animate-spin text-orange-500" fill="none" viewBox="0 0 24 24">
             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
         </svg>

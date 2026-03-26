@@ -32,7 +32,7 @@ export const billing = {
                 env: ENVIRONMENT,
                 txnId: txnId,
             },
-            return_url: `${process.env.NEXT_PUBLIC_BASE_URL}/home`,
+            return_url: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard`,
         })
         return checkout;
     },

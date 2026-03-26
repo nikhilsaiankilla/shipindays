@@ -212,28 +212,88 @@ export async function POST(req: Request) {
             return new NextResponse("Invalid data", { status: 400 });
         }
 
+        console.log('data ', data);
+
         const eventType = event.type as string;
 
         switch (eventType) {
-
-            case "payment.success": {
-                const txnId = data.metadata?.txnId;
+            // PAYMENT SUCCESS (primary flow)
+            case "payment.succeeded": {
+                const txnId = data?.metadata?.txnId;
 
                 if (!txnId) {
                     console.error("Missing txnId");
-                    return;
+                    break;
                 }
+
+                const totalAmount = data?.total_amount / 100
 
                 await updatePaymentById({
                     id: txnId,
                     data: {
-                        providerTxnId: data.order_id,
-                        amount: data.total_amount,
-                        currency: data.currency || "USD",
+                        providerTxnId: data?.order_id,
+                        amount: totalAmount,
+                        currency: data?.currency || "USD",
                         status: "succeeded",
                     },
                 });
+
+                break;
             }
+
+            // NEW: SUBSCRIPTION RENEWED (CRITICAL)
+            case "subscription.renewed": {
+                if (!isSubscriptionData(data)) {
+                    console.error("Invalid subscription.renewed payload");
+                    break;
+                }
+
+                const userId = data.metadata?.userId;
+                const txnId = data.metadata?.txnId;
+
+                if (!userId) {
+                    console.error("Missing userId");
+                    break;
+                }
+
+                // Update subscription period
+                await updateSubscriptionById({
+                    id: data.subscription_id,
+                    data: {
+                        status: "active",
+                        planId: data.product_id || "default",
+                        currentPeriodEnd: new Date(data.next_billing_date),
+                        cancelAtPeriodEnd: data.cancel_at_next_billing_date ?? false,
+                    },
+                });
+
+                // Track renewal payment
+                if (txnId) {
+                    const totalAmount = data?.total_amount / 100
+
+                    await updatePaymentById({
+                        id: txnId,
+                        data: {
+                            providerTxnId: data?.order_id,
+                            amount: totalAmount,
+                            currency: data?.currency || "USD",
+                            status: "succeeded",
+                        },
+                    });
+                } else {
+                    // fallback (metadata missing — shouldn't happen ideally)
+                    await createPayment({
+                        id: data?.order_id,
+                        userId,
+                        amount: data?.total_amount,
+                        currency: data?.currency || "USD",
+                        status: "succeeded",
+                    });
+                }
+
+                break;
+            }
+
 
             case "subscription.active": {
                 if (!isSubscriptionData(data)) {
@@ -266,13 +326,29 @@ export async function POST(req: Request) {
                 break;
             }
 
+            // LEGACY / FALLBACK
             case "order.success": {
                 if (!isOrderSuccessData(data)) {
                     console.error("Invalid order.success payload");
                     break;
                 }
 
-                await handleOrderSuccess(data);
+                const txnId = data.metadata?.txnId;
+
+                const totalAmount = data?.total_amount / 100;
+
+                if (txnId) {
+                    await updatePaymentById({
+                        id: txnId,
+                        data: {
+                            providerTxnId: data.order_id,
+                            amount: totalAmount,
+                            currency: data.currency || "USD",
+                            status: "succeeded",
+                        },
+                    });
+                }
+
                 break;
             }
 

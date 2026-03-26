@@ -50,27 +50,16 @@ export default function LoginBox() {
     // Magic sent state (clean + centered + calm)
     if (magicSent) {
         return (
-            <div className="w-full max-w-md px-2 mx-auto">
-                <div className="rounded-2xl border bg-background/60 backdrop-blur-md shadow-sm px-8 py-10 text-center space-y-5">
-                    <div className="text-3xl">📬</div>
-
-                    <h1 className="text-xl font-semibold">
-                        Check your email
-                    </h1>
-
-                    <p className="text-sm text-muted-foreground leading-relaxed">
-                        We sent a login link to{" "}
-                        <span className="font-medium text-foreground">
-                            {email}
-                        </span>
+            <div className="w-full max-w-md px-4 mx-auto">
+                <div className="rounded-[20px_10px_40px_15px] border-4 border-black bg-white shadow-[8px_8px_0px_#FFA500] px-8 py-10 text-center space-y-6 rotate-1">
+                    <div className="text-5xl animate-bounce">📬</div>
+                    <h1 className="text-2xl font-black uppercase italic">Check your mail!</h1>
+                    <p className="text-sm font-bold text-zinc-500 leading-tight italic">
+                        "We sent a magic login link to <span className="text-black underline decoration-2 decoration-blue-400">{email}</span>"
                     </p>
-
                     <button
-                        onClick={() => {
-                            setMagicSent(false);
-                            setEmail("");
-                        }}
-                        className="text-sm underline underline-offset-4 text-muted-foreground hover:text-foreground"
+                        onClick={() => { setMagicSent(false); setEmail(""); }}
+                        className="text-xs font-black uppercase tracking-widest border-b-2 border-black hover:text-orange-500 transition-colors"
                     >
                         Use another email
                     </button>
@@ -80,46 +69,42 @@ export default function LoginBox() {
     }
 
     return (
-        <div className="w-full max-w-md px-2 mx-auto">
-
-            <div className="rounded-2xl border bg-background/60 backdrop-blur-md shadow-sm px-8 py-10 space-y-8">
-
+        <div className="w-full max-w-md px-4 mx-auto font-sans">
+            <div className="rounded-[15px_40px_12px_35px] border-4 border-black bg-white shadow-[12px_12px_0px_0px_#000] px-8 py-12 space-y-10 relative">
                 {/* Header */}
-                <div className="text-center space-y-3">
-                    <h1 className="text-3xl font-semibold tracking-tight">
-                        Welcome back
+                <div className="text-center space-y-2">
+                    <h1 className="text-4xl font-black tracking-tighter uppercase italic">
+                        Welcome <span className="text-orange-500">Back</span>
                     </h1>
-                    <p className="text-sm text-muted-foreground">
-                        Continue with Google or email
+                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">
+                        Authentication_Required // v1.0.4
                     </p>
                 </div>
 
-                {/* Google */}
+                {/* Google Button: Sticker Style */}
                 <button
                     onClick={handleGoogle}
                     disabled={loading !== null}
-                    className="w-full flex items-center justify-center gap-3 
-                        px-4 py-3 rounded-xl border text-sm font-medium 
-                        bg-white text-black hover:bg-gray-50
-                        transition-all duration-200
-                        disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="group w-full flex items-center justify-center gap-3 
+                        px-4 py-4 rounded-xl border-2 border-black text-sm font-black uppercase tracking-widest
+                        bg-white text-black shadow-[4px_4px_0px_#000] hover:shadow-none hover:translate-x-1 hover:translate-y-1
+                        transition-all disabled:opacity-50"
                 >
                     {loading === "google" ? <Spinner /> : <GoogleIcon />}
                     Continue with Google
                 </button>
 
-                {/* Divider */}
-                <div className="flex items-center gap-3">
-                    <div className="h-px flex-1 bg-border" />
-                    <span className="text-xs text-muted-foreground">
-                        or use email
+                {/* Divider: Scribble Style */}
+                <div className="flex items-center gap-4">
+                    <div className="h-[2px] flex-1 bg-black/10 rounded-full" />
+                    <span className="text-[10px] font-black text-zinc-300 uppercase italic">
+                        or use a marker
                     </span>
-                    <div className="h-px flex-1 bg-border" />
+                    <div className="h-[2px] flex-1 bg-black/10 rounded-full" />
                 </div>
 
                 {/* Email Form */}
-                <form onSubmit={handleMagicLink} className="space-y-3">
-
+                <form onSubmit={handleMagicLink} className="space-y-4">
                     <input
                         type="email"
                         required
@@ -127,53 +112,45 @@ export default function LoginBox() {
                         onChange={(e) => setEmail(e.target.value)}
                         placeholder="you@example.com"
                         disabled={loading !== null}
-                        className="w-full px-4 py-3 rounded-xl border bg-background text-sm
-                            placeholder:text-muted-foreground
-                            focus:outline-none focus:ring-2 focus:ring-ring"
+                        className="w-full px-5 py-4 rounded-xl border-2 border-black bg-zinc-50 text-sm font-bold
+                            placeholder:text-zinc-400 focus:outline-none focus:ring-4 focus:ring-orange-500/10 italic"
                     />
 
                     <button
                         type="submit"
                         disabled={loading !== null || !email}
-                        className="w-full py-3 rounded-xl text-sm font-medium
-                            bg-foreground text-background
-                            hover:bg-foreground/90
-                            transition-all
-                            disabled:opacity-50 disabled:cursor-not-allowed
+                        className="w-full py-4 rounded-xl text-sm font-black uppercase tracking-[0.2em]
+                            bg-black text-white shadow-[4px_4px_0px_#FFA500]
+                            hover:bg-zinc-800 transition-all active:shadow-none active:translate-x-1 active:translate-y-1
                             flex items-center justify-center gap-2"
                     >
                         {loading === "magic" && <Spinner light />}
-                        Send magic link
+                        Send magic link →
                     </button>
                 </form>
 
-                {/* Error */}
+                {/* Error Sticker */}
                 {error && (
-                    <p className="text-sm text-destructive text-center">
-                        {error}
-                    </p>
+                    <div className="bg-red-50 border-2 border-red-500 p-2 rotate-1 text-center">
+                        <p className="text-[10px] font-black text-red-600 uppercase">
+                            {error}
+                        </p>
+                    </div>
                 )}
 
-                {/* Footer */}
-                <p className="text-center text-xs text-muted-foreground leading-relaxed px-2">
-                    By continuing, you agree to our{" "}
-                    <a href="/terms" className="underline underline-offset-4 hover:text-foreground">
-                        Terms
-                    </a>{" "}
-                    and{" "}
-                    <a href="/privacy" className="underline underline-offset-4 hover:text-foreground">
-                        Privacy Policy
-                    </a>.
-                </p>
-
+                {/* Footer Footer */}
+                <footer className="text-center space-y-4">
+                    <p className="text-[9px] font-bold text-zinc-400 uppercase tracking-widest leading-tight">
+                        By continuing, you agree to our{" "}
+                        <a href="/terms" className="text-black underline decoration-orange-500/40 hover:decoration-orange-500">Terms</a>
+                        {" "}&{" "}
+                        <a href="/privacy" className="text-black underline decoration-blue-500/40 hover:decoration-blue-500">Privacy</a>
+                    </p>
+                </footer>
             </div>
         </div>
     );
 }
-
-/* -------------------------------------------------------------------------- */
-/* ICONS */
-/* -------------------------------------------------------------------------- */
 
 function GoogleIcon() {
     return (
