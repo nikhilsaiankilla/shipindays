@@ -1,6 +1,6 @@
 // FILE: src/app/api/webhooks/stripe/route.ts
 
-import { stripe } from "@/src/lib/stripe";
+import { stripe } from "@/src/lib/payments";
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import Stripe from "stripe";

@@ -143,11 +143,11 @@ const PAYMENT_PROVIDERS = {
     hint: "Merchant of Record — simplifies global tax/compliance",
     url: "dodopayments.com",
   },
-  stripe: {
-    label: "Stripe",
-    hint: "Subscriptions + One-time payments via Stripe Checkout",
-    url: "stripe.com",
-  },
+  // stripe: {
+  //   label: "Stripe",
+  //   hint: "Subscriptions + One-time payments via Stripe Checkout",
+  //   url: "stripe.com",
+  // },
   // Add new payment providers above this line
 };
 
@@ -244,17 +244,17 @@ const ENV_VARS = {
         "NEXT_PUBLIC_DODO_PRICE_ID_PRO=",
       ],
     },
-    stripe: {
-      "# Stripe (dashboard.stripe.com → Developers → API keys)": [
-        "STRIPE_SECRET_KEY=",
-        "STRIPE_WEBHOOK_SECRET=",
-        "NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=",
-      ],
-      "# Stripe Pricing": [
-        "NEXT_PUBLIC_DODO_PRICE_ID_STARTER=",
-        "NEXT_PUBLIC_STRIPE_PRICE_ID_PRO=",
-      ],
-    },
+    // stripe: {
+    //   "# Stripe (dashboard.stripe.com → Developers → API keys)": [
+    //     "STRIPE_SECRET_KEY=",
+    //     "STRIPE_WEBHOOK_SECRET=",
+    //     "NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=",
+    //   ],
+    //   "# Stripe Pricing": [
+    //     "NEXT_PUBLIC_STRIPE_PRICE_ID_STARTER=",
+    //     "NEXT_PUBLIC_STRIPE_PRICE_ID_PRO=",
+    //   ],
+    // },
     // Add env vars for new payment providers above
   },
 };

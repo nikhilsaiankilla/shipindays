@@ -1,18 +1,24 @@
 import Stripe from "stripe";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
+export const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
     apiVersion: "2023-10-16",
 });
 
 export const billing = {
     // Create checkout link
-    createCheckout: async (priceId: string, email: string) => {
+    createCheckout: async (priceId: string, email: string, userId: string, txnId: string) => {
         const session = await stripe.checkout.sessions.create({
             customer_email: email,
             line_items: [{ price: priceId, quantity: 1 }],
             mode: "subscription",
             success_url: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard`,
             cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/pricing`,
+            metadata: {
+                userId,
+                productId: priceId,
+                // env: ENVIRONMENT,
+                txnId: txnId,
+            },
         });
         return { url: session.url!, id: session.id };
     },

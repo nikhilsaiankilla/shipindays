@@ -1,7 +1,14 @@
 // src/db/db-helpers.ts
-import { prisma } from '@/src/lib/prisma'
 
+import { getDb } from ".";
+import { users, subscriptions, payments, webhookEvents } from "./schema";
+import { eq, sql } from "drizzle-orm";
+
+const db = getDb();
+// =========================
 // USER
+// =========================
+
 export async function createUser({
   email,
   authId,
@@ -15,15 +22,15 @@ export async function createUser({
   image?: string;
   lastLoginAt?: Date;
 }) {
-  return prisma.user.create({
-    data: {
-      email,
-      authId,
-      name,
-      image,
-      lastLoginAt,
-    },
-  });
+  const result = await db.insert(users).values({
+    email,
+    authId,
+    name,
+    image,
+    lastLoginAt,
+  }).returning();
+
+  return result[0];
 }
 
 export async function getUser({
@@ -34,23 +41,52 @@ export async function getUser({
   value: string;
 }) {
   if (field === "id") {
-    return prisma.user.findUnique({ where: { id: value } });
+    const [user] = await db
+      .select()
+      .from(users)
+      .where(
+        eq(
+          users.id, value
+        )
+      )
+
+    return user
   }
 
   if (field === "email") {
-    return prisma.user.findUnique({ where: { email: value } });
+    const [user] = await db
+      .select()
+      .from(users)
+      .where(
+        eq(
+          users.email, value
+        )
+      )
+
+    return user
   }
 
   if (field === "authId") {
-    return prisma.user.findUnique({ where: { authId: value } });
+    const [user] = await db
+      .select()
+      .from(users)
+      .where(
+        eq(
+          users.authId, value
+        )
+      )
+
+    return user
   }
 
   return null;
 }
 
-// SUBSCRIPTIONS
 
-// keep but DO NOT use in webhooks
+// =========================
+// SUBSCRIPTIONS
+// =========================
+
 export async function createSubscription({
   id,
   userId,
@@ -66,19 +102,20 @@ export async function createSubscription({
   currentPeriodEnd: Date;
   cancelAtPeriodEnd?: boolean;
 }) {
-  return prisma.subscription.create({
-    data: {
-      id,
-      userId,
-      planId,
-      status,
-      currentPeriodEnd,
-      cancelAtPeriodEnd,
-    },
-  });
+  const result = await db.insert(subscriptions).values({
+    id,
+    userId,
+    planId,
+    status,
+    currentPeriodEnd,
+    cancelAtPeriodEnd,
+  }).returning();
+
+  return result[0];
 }
 
-// MAIN METHOD (use this everywhere)
+
+// 🔥 UPSERT (IMPORTANT DIFFERENCE)
 export async function upsertSubscription({
   id,
   userId,
@@ -94,27 +131,31 @@ export async function upsertSubscription({
   currentPeriodEnd: Date;
   cancelAtPeriodEnd?: boolean;
 }) {
-  return prisma.subscription.upsert({
-    where: {
-      userId, // unique constraint
-    },
-    create: {
+  const result = await db
+    .insert(subscriptions)
+    .values({
       id,
       userId,
       planId,
       status,
       currentPeriodEnd,
       cancelAtPeriodEnd,
-    },
-    update: {
-      id,
-      planId,
-      status,
-      currentPeriodEnd,
-      cancelAtPeriodEnd,
-    },
-  });
+    })
+    .onConflictDoUpdate({
+      target: subscriptions.userId,
+      set: {
+        id,
+        planId,
+        status,
+        currentPeriodEnd,
+        cancelAtPeriodEnd,
+      },
+    })
+    .returning();
+
+  return result[0];
 }
+
 
 // update by provider subscription id
 export async function updateSubscriptionById({
@@ -129,13 +170,21 @@ export async function updateSubscriptionById({
     cancelAtPeriodEnd: boolean;
   }>;
 }) {
-  return prisma.subscription.update({
-    where: { id },
-    data,
-  }).catch(() => null); // prevent crash if not found
+  try {
+    const result = await db
+      .update(subscriptions)
+      .set(data)
+      .where(eq(subscriptions.id, id))
+      .returning();
+
+    return result[0] ?? null;
+  } catch {
+    return null;
+  }
 }
 
-// update by userId (safer fallback)
+
+// update by userId
 export async function updateSubscriptionByUserId({
   userId,
   data,
@@ -148,30 +197,48 @@ export async function updateSubscriptionByUserId({
     cancelAtPeriodEnd: boolean;
   }>;
 }) {
-  return prisma.subscription.update({
-    where: { userId },
-    data,
-  }).catch(() => null);
+  try {
+    const result = await db
+      .update(subscriptions)
+      .set(data)
+      .where(eq(subscriptions.userId, userId))
+      .returning();
+
+    return result[0] ?? null;
+  } catch {
+    return null;
+  }
 }
+
 
 // get subscription
 export async function getSubscriptionByUserId(userId: string) {
-  return prisma.subscription.findUnique({
-    where: { userId },
-  });
+  return (
+    (await db.select().from(subscriptions).where(eq(subscriptions.userId, userId)))[0] ?? null
+  );
 }
+
 
 // expire subscription
 export async function expireSubscription(id: string) {
-  return prisma.subscription.update({
-    where: { id },
-    data: {
-      status: "expired",
-    },
-  }).catch(() => null);
+  try {
+    const result = await db
+      .update(subscriptions)
+      .set({ status: "expired" })
+      .where(eq(subscriptions.id, id))
+      .returning();
+
+    return result[0] ?? null;
+  } catch {
+    return null;
+  }
 }
 
+
+// =========================
 // PAYMENTS
+// =========================
+
 export async function createPayment({
   id,
   userId,
@@ -185,65 +252,23 @@ export async function createPayment({
   currency?: string;
   status: string;
 }) {
-  return prisma.payment.create({
-    data: {
-      id,
-      userId,
-      amount,
-      currency,
-      status,
-    },
-  });
+  const result = await db.insert(payments).values({
+    id,
+    userId,
+    amount,
+    currency,
+    status,
+  }).returning();
+
+  return result[0];
 }
 
 export async function getPaymentById(id: string) {
-  return prisma.payment.findUnique({
-    where: { id },
-  });
+  return (
+    (await db.select().from(payments).where(eq(payments.id, id)))[0] ?? null
+  );
 }
 
-// WEBHOOK EVENTS
-export async function createWebhookEvent({
-  id,
-  type,
-}: {
-  id: string;
-  type: string;
-}) {
-  return prisma.webhookEvent.create({
-    data: {
-      id,
-      type,
-    },
-  });
-}
-
-export async function hasWebhookEvent(id: string) {
-  const event = await prisma.webhookEvent.findUnique({
-    where: { id },
-  });
-
-  return !!event;
-}
-
-// USER TRACKING
-export async function updateUserLogin({
-  authId,
-  lastLoginAt = new Date(),
-}: {
-  authId: string;
-  lastLoginAt?: Date;
-}) {
-  return prisma.user.update({
-    where: { authId },
-    data: {
-      lastLoginAt,
-      loginCount: {
-        increment: 1,
-      },
-    },
-  });
-}
 
 export async function updatePaymentById({
   id,
@@ -257,12 +282,66 @@ export async function updatePaymentById({
     status: string;
   }>;
 }) {
-  return prisma.payment
-    .update({
-      where: { id },
-      data: {
-        ...data,
-      },
+  try {
+    const result = await db
+      .update(payments)
+      .set(data)
+      .where(eq(payments.id, id))
+      .returning();
+
+    return result[0] ?? null;
+  } catch {
+    return null;
+  }
+}
+
+
+// =========================
+// WEBHOOK EVENTS
+// =========================
+
+export async function createWebhookEvent({
+  id,
+  type,
+}: {
+  id: string;
+  type: string;
+}) {
+  const result = await db.insert(webhookEvents).values({
+    id,
+    type,
+  }).returning();
+
+  return result[0];
+}
+
+export async function hasWebhookEvent(id: string) {
+  const event =
+    (await db.select().from(webhookEvents).where(eq(webhookEvents.id, id)))[0];
+
+  return !!event;
+}
+
+
+// =========================
+// USER TRACKING
+// =========================
+
+export async function updateUserLogin({
+  authId,
+  lastLoginAt = new Date(),
+}: {
+  authId: string;
+  lastLoginAt?: Date;
+}) {
+  const result = await db
+    .update(users)
+    .set({
+      lastLoginAt,
+      loginCount: sql`${users.loginCount} + 1`,
     })
-    .catch(() => null); // prevents crash if payment not found
+    .where(eq(users.authId, authId))
+    .returning();
+
+  return result[0];
 }

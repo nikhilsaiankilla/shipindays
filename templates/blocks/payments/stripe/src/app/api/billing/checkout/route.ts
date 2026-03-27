@@ -42,12 +42,11 @@ export const GET = async (req: NextRequest) => {
         // 5. Create pending payment (IMPORTANT)
         await createPayment({
             id: txnId,
-            userId: dbUser.id,
+            userId: dbUser?.id,
             amount: 0, // unknown at checkout
             currency: "USD",
             status: "pending",
         });
-
 
         // 4. Create checkout
         const checkout = await billing.createCheckout(

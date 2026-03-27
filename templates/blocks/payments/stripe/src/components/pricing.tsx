@@ -26,11 +26,11 @@ export default function PricingSection() {
                 throw new Error(data.error || "Failed");
             }
 
-            if (!data?.checkout_url) {
+            if (!data?.url) {
                 throw new Error("checkout url is missing!!");
             }
 
-            router.push(data?.checkout_url)
+            router.push(data?.url)
         } catch (err) {
             console.error(err);
             alert("Something went wrong");
