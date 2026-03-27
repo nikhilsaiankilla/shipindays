@@ -2,27 +2,22 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { billing } from "@/src/lib/payments"; // adjust path if needed
-import { getSupabaseServerClient } from "@/src/lib/auth/server";
 import { createPayment, getUser } from "@/src/db/db-helpers";
+import { getCurrentUser } from "@/src/lib/auth";
 
 export const GET = async (req: NextRequest) => {
     try {
-        const supabase = await getSupabaseServerClient();
-
         // 1. Get logged in user
-        const {
-            data: { user: authUser },
-            error: authError,
-        } = await supabase.auth.getUser();
+        const user = await getCurrentUser();
 
-        if (authError || !authUser || !authUser?.email) {
+        if (!user || !user.email) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
         // 2. Get DB user (important: don't trust auth blindly)
         const dbUser = await getUser({
             field: "email",
-            value: authUser?.email,
+            value: user?.email,
         });
 
         if (!dbUser) {

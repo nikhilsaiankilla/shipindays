@@ -143,6 +143,11 @@ const PAYMENT_PROVIDERS = {
     hint: "Merchant of Record — simplifies global tax/compliance",
     url: "dodopayments.com",
   },
+  polar: {
+    label: "Polar",
+    hint: "Merchant of Record handling global payments, tax, and compliance",
+    url: "polar.sh",
+  },
   // stripe: {
   //   label: "Stripe",
   //   hint: "Subscriptions + One-time payments via Stripe Checkout",
@@ -240,8 +245,18 @@ const ENV_VARS = {
         "DODO_ENV=test"
       ],
       "# Dodo Pricing": [
-        "NEXT_PUBLIC_DODO_PRICE_ID_BASIC=",
+        "NEXT_PUBLIC_DODO_PRICE_ID_STARTER=",
         "NEXT_PUBLIC_DODO_PRICE_ID_PRO=",
+      ],
+    },
+    polar: {
+      "# Polar Payments": [
+        "POLAR_ACCESS_TOKEN=",
+        "POLAR_PAYMENTS_WEBHOOK_KEY=",
+      ],
+      "# Dodo Pricing": [
+        "NEXT_PUBLIC_POLAR_PRICE_ID_STARTER=",
+        "NEXT_PUBLIC_POLAR_PRICE_ID_PRO=",
       ],
     },
     // stripe: {

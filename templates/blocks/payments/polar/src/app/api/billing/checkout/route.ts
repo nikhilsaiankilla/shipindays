@@ -7,21 +7,17 @@ import { getCurrentUser } from "@/src/lib/auth";
 
 export const GET = async (req: NextRequest) => {
     try {
-        // 1. Get logged in user (centralized auth)
-        const authUser = await getCurrentUser();
+        // 1. Get logged in user
+        const user = await getCurrentUser();
 
-        if (!authUser || !authUser.email) {
-            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-        }
-
-        if (!authUser || !authUser?.email) {
+        if (!user || !user.email) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
         // 2. Get DB user (important: don't trust auth blindly)
         const dbUser = await getUser({
             field: "email",
-            value: authUser?.email,
+            value: user?.email,
         });
 
         if (!dbUser) {
@@ -41,7 +37,7 @@ export const GET = async (req: NextRequest) => {
         // 5. Create pending payment (IMPORTANT)
         await createPayment({
             id: txnId,
-            userId: dbUser?.id,
+            userId: dbUser.id,
             amount: 0, // unknown at checkout
             currency: "USD",
             status: "pending",
@@ -54,7 +50,7 @@ export const GET = async (req: NextRequest) => {
             dbUser?.id,
             txnId
         );
-
+        
         return NextResponse.json(checkout);
     } catch (error) {
         console.error("Checkout error:", error);

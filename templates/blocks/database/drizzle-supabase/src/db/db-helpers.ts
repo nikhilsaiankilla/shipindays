@@ -5,10 +5,8 @@ import { users, subscriptions, payments, webhookEvents } from "./schema";
 import { eq, sql } from "drizzle-orm";
 
 const db = getDb();
-// =========================
-// USER
-// =========================
 
+// USER
 export async function createUser({
   email,
   authId,
@@ -22,13 +20,16 @@ export async function createUser({
   image?: string;
   lastLoginAt?: Date;
 }) {
-  const result = await db.insert(users).values({
-    email,
-    authId,
-    name,
-    image,
-    lastLoginAt,
-  }).returning();
+  const result = await db
+    .insert(users)
+    .values({
+      email,
+      authId,
+      name,
+      image,
+      lastLoginAt,
+    })
+    .returning();
 
   return result[0];
 }
@@ -82,11 +83,7 @@ export async function getUser({
   return null;
 }
 
-
-// =========================
 // SUBSCRIPTIONS
-// =========================
-
 export async function createSubscription({
   id,
   userId,
@@ -102,20 +99,23 @@ export async function createSubscription({
   currentPeriodEnd: Date;
   cancelAtPeriodEnd?: boolean;
 }) {
-  const result = await db.insert(subscriptions).values({
-    id,
-    userId,
-    planId,
-    status,
-    currentPeriodEnd,
-    cancelAtPeriodEnd,
-  }).returning();
+  const result = await db
+    .insert(subscriptions)
+    .values({
+      id,
+      userId,
+      planId,
+      status,
+      currentPeriodEnd,
+      cancelAtPeriodEnd,
+    })
+    .returning();
 
   return result[0];
 }
 
 
-// 🔥 UPSERT (IMPORTANT DIFFERENCE)
+// UPSERT (IMPORTANT DIFFERENCE)
 export async function upsertSubscription({
   id,
   userId,
@@ -235,10 +235,7 @@ export async function expireSubscription(id: string) {
 }
 
 
-// =========================
 // PAYMENTS
-// =========================
-
 export async function createPayment({
   id,
   userId,
@@ -264,11 +261,9 @@ export async function createPayment({
 }
 
 export async function getPaymentById(id: string) {
-  return (
-    (await db.select().from(payments).where(eq(payments.id, id)))[0] ?? null
-  );
+  const [payment] = await db.select().from(payments).where(eq(payments?.id, id)).limit(1)
+  return payment ?? null;
 }
-
 
 export async function updatePaymentById({
   id,
@@ -296,10 +291,7 @@ export async function updatePaymentById({
 }
 
 
-// =========================
 // WEBHOOK EVENTS
-// =========================
-
 export async function createWebhookEvent({
   id,
   type,
@@ -323,10 +315,7 @@ export async function hasWebhookEvent(id: string) {
 }
 
 
-// =========================
 // USER TRACKING
-// =========================
-
 export async function updateUserLogin({
   authId,
   lastLoginAt = new Date(),

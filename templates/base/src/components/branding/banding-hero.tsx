@@ -49,7 +49,8 @@ export default function BrandingHero() {
 
                 {/* Action Section */}
                 <section className="space-y-8 flex flex-col items-start">
-                    <a
+                    <div className="flex items-center gap-2 flex-wrap">
+                    <Link
                         href="https://github.com/nikhilsaiankilla/shipindays"
                         target="_blank"
                         className="relative inline-block px-10 py-4 font-bold text-xl group"
@@ -60,7 +61,19 @@ export default function BrandingHero() {
                         <span className="relative text-black group-hover:text-white flex items-center gap-2">
                             ★ Star on GitHub
                         </span>
-                    </a>
+                    </Link>
+                    <Link
+                        href="/login"
+                        className="relative inline-block px-10 py-4 font-bold text-xl group"
+                    >
+                        {/* Custom Hand-Drawn Button Shape */}
+                        <span className="absolute inset-0 w-full h-full transition duration-200 ease-out transform translate-x-1 translate-y-1 bg-black group-hover:-translate-x-0 group-hover:-translate-y-0 rounded-xl"></span>
+                        <span className="absolute inset-0 w-full h-full bg-white border-2 border-black rounded-xl group-hover:bg-orange-400 transition-colors"></span>
+                        <span className="relative text-black group-hover:text-white flex items-center gap-2">
+                            verify login flow
+                        </span>
+                    </Link>
+                    </div>
 
                     <p className="text-zinc-500 font-bold transform">
                         Open Source // MIT License

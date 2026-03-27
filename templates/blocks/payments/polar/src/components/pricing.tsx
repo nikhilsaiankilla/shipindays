@@ -21,9 +21,9 @@ export default function PricingSection() {
             const data = await res.json();
 
             if (!res.ok) throw new Error(data.error || "Failed");
-            if (!data?.checkout_url) throw new Error("checkout url is missing!!");
+            if (!data?.url) throw new Error("checkout url is missing!!");
 
-            router.push(data?.checkout_url);
+            router.push(data?.url);
         } catch (err) {
             console.error(err);
             alert("Something went wrong");
@@ -109,7 +109,7 @@ export default function PricingSection() {
                 {/* Secure Payment Footer */}
                 <div className="mt-16 flex flex-wrap justify-center gap-8 opacity-30 grayscale contrast-125">
                      <span className="text-[10px] font-black uppercase tracking-[0.3em]">SECURE_VIA_STRIPE</span>
-                     <span className="text-[10px] font-black uppercase tracking-[0.3em]">STRIPE_PAYMENTS_READY</span>
+                     <span className="text-[10px] font-black uppercase tracking-[0.3em]">DODO_PAYMENTS_READY</span>
                      <span className="text-[10px] font-black uppercase tracking-[0.3em]">SSL_ENCRYPTED</span>
                 </div>
             </div>
