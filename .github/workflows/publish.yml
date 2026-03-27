@@ -1,5 +1,3 @@
-# .github/workflows/publish.yml
-
 name: Auto version bump + publish
 
 on:
@@ -31,13 +29,25 @@ jobs:
         env:
           HUSKY: "0"
 
+      - name: Check if this is a release commit
+        id: check
+        run: |
+          COMMIT_MSG=$(git log -1 --pretty=%B)
+          echo "Commit: $COMMIT_MSG"
+          if echo "$COMMIT_MSG" | grep -qE "^chore: release"; then
+            echo "skip=true" >> $GITHUB_OUTPUT
+            echo "This is a release commit — skipping."
+          else
+            echo "skip=false" >> $GITHUB_OUTPUT
+          fi
+
       - name: Auto bump version based on commit message
+        if: steps.check.outputs.skip == 'false'
         id: bump
         env:
           HUSKY: "0"
         run: |
           COMMIT_MSG=$(git log -1 --pretty=%B)
-          echo "Commit: $COMMIT_MSG"
 
           if echo "$COMMIT_MSG" | grep -qE "^feat!|BREAKING CHANGE"; then
             BUMP="major"
@@ -52,16 +62,27 @@ jobs:
           git config user.email "github-actions@github.com"
           git config user.name "github-actions"
 
-          # ← THIS is the fix
-          # npm install may have changed package-lock.json
-          # stash those changes so git working directory is clean
+          # Stash any lockfile changes from npm install
           git stash
 
-          npm version $BUMP -m "chore: release %s [skip ci]"
+          # Get current version and compute next to check if tag exists
+          CURRENT=$(node -p "require('./package.json').version")
+          NEXT=$(npx semver -i $BUMP $CURRENT)
+          echo "Current: $CURRENT → Next: $NEXT"
 
-          git push --follow-tags
+          if git rev-parse "v$NEXT" >/dev/null 2>&1; then
+            echo "Tag v$NEXT already exists — skipping publish."
+            echo "already_tagged=true" >> $GITHUB_OUTPUT
+          else
+            echo "already_tagged=false" >> $GITHUB_OUTPUT
+            npm version $BUMP -m "chore: release %s [skip ci]"
+            git push --follow-tags
+          fi
 
       - name: Publish to npm
+        if: |
+          steps.check.outputs.skip == 'false' &&
+          steps.bump.outputs.already_tagged == 'false'
         run: npm publish --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
