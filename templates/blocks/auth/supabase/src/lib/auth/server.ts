@@ -82,8 +82,8 @@ export function createSupabaseAuthServer(cookieStore: CookieStore) {
          * - sameSite is normalized
          * - path is always set (required for proper cookie behavior)
          */
-        setAll(cookies) {
-          cookies.forEach(({ name, value, options }) => {
+        setAll(cookies: Array<{ name: string; value: string; options: any }>) {
+          cookies.forEach(({ name, value, options }: { name: string; value: string; options: any }) => {
             cookieStore.set(name, value, {
               ...options,
               sameSite: normalizeSameSite(options.sameSite),
