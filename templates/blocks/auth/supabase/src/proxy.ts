@@ -44,14 +44,14 @@ export async function proxy(req: NextRequest) {
          * 2. Recreate response object
          * 3. Attach cookies to response
          */
-        setAll(cookiesToSet) {
+        setAll(cookiesToSet: Array<{ name: string; value: string; options: any }>) {
           cookiesToSet.forEach(({ name, value }) =>
             req.cookies.set(name, value),
           );
 
           res = NextResponse.next({ request: req });
 
-          cookiesToSet.forEach(({ name, value, options }) =>
+          cookiesToSet.forEach(({ name, value, options } : { name: string; value: string; options: any }) =>
             res.cookies.set(name, value, options),
           );
         },
