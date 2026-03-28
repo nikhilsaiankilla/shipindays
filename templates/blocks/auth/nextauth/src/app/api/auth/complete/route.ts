@@ -12,12 +12,11 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { NextResponse } from "next/server";
-import { requireUser } from "@/src/lib/auth";
 import { getUser, createUser, updateUserLogin } from "@/src/db/db-helpers";
+import { requireUser } from "@/src/lib/auth";
 // import { sendWelcomeEmail} from '@/src/lib/email' 
 
 export async function GET() {
-    const supabase = await getSupabaseServerClient();
     const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
 
     // Get the logged-in user from the session
@@ -27,7 +26,7 @@ export async function GET() {
         return NextResponse.redirect(`${appUrl}/login?error=no_session`);
     }
 
-    const authId = user?.id;
+    const authId = user.id;
 
     // Check if user exists in YOUR DB
     const existingUser = await getUser({
@@ -40,8 +39,8 @@ export async function GET() {
         await createUser({
             email: user?.email!,
             authId: user?.id,
-            name: user?.user_metadata?.full_name ?? undefined,
-            image: user?.user_metadata?.avatar_url ?? undefined,
+            name: user?.name ?? undefined,
+            image: user?.image ?? undefined,
             lastLoginAt: new Date(),
         });
 

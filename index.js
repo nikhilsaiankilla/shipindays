@@ -111,11 +111,11 @@ const AUTH_PROVIDERS = {
     hint: "Magic link + OAuth — server.ts + client.ts included",
     url: "supabase.com",
   },
-  // nextauth: {
-  //   label: "NextAuth v5",
-  //   hint: "Credentials + Google + GitHub — self-hostable",
-  //   url: "authjs.dev",
-  // },
+  nextauth: {
+    label: "NextAuth v5",
+    hint: "Credentials + Google + GitHub — self-hostable",
+    url: "authjs.dev",
+  },
   // Add new auth providers above this line
 };
 
@@ -207,16 +207,16 @@ const ENV_VARS = {
         "SUPABASE_SERVICE_ROLE_KEY=",
       ],
     },
-    // nextauth: {
-    //   "# NextAuth": [
-    //     "# openssl rand -base64 32",
-    //     "AUTH_SECRET="
-    //   ],
-    //   "# OAuth — Google (console.cloud.google.com)": [
-    //     "AUTH_GOOGLE_ID=",
-    //     "AUTH_GOOGLE_SECRET=",
-    //   ],
-    // },
+    nextauth: {
+      "# NextAuth": [
+        "# openssl rand -base64 32",
+        "AUTH_SECRET="
+      ],
+      "# OAuth — Google (console.cloud.google.com)": [
+        "AUTH_GOOGLE_ID=",
+        "AUTH_GOOGLE_SECRET=",
+      ],
+    },
     // Add env vars for new auth providers above
   },
 
