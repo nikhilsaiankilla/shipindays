@@ -1,12 +1,13 @@
-// src/db/db-helpers.ts
-
 import { getDb } from ".";
 import { users, subscriptions, payments, webhookEvents } from "./schema";
 import { eq, sql } from "drizzle-orm";
 
 const db = getDb();
 
+
 // USER
+
+// create a new user record
 export async function createUser({
   email,
   authId,
@@ -34,6 +35,8 @@ export async function createUser({
   return result[0];
 }
 
+
+// fetch user by unique field
 export async function getUser({
   field,
   value,
@@ -45,45 +48,36 @@ export async function getUser({
     const [user] = await db
       .select()
       .from(users)
-      .where(
-        eq(
-          users.id, value
-        )
-      )
+      .where(eq(users.id, value));
 
-    return user
+    return user;
   }
 
   if (field === "email") {
     const [user] = await db
       .select()
       .from(users)
-      .where(
-        eq(
-          users.email, value
-        )
-      )
+      .where(eq(users.email, value));
 
-    return user
+    return user;
   }
 
   if (field === "authId") {
     const [user] = await db
       .select()
       .from(users)
-      .where(
-        eq(
-          users.authId, value
-        )
-      )
+      .where(eq(users.authId, value));
 
-    return user
+    return user;
   }
 
   return null;
 }
 
+
 // SUBSCRIPTIONS
+
+// create subscription (initial insert)
 export async function createSubscription({
   id,
   userId,
@@ -115,7 +109,7 @@ export async function createSubscription({
 }
 
 
-// UPSERT (IMPORTANT DIFFERENCE)
+// insert or update subscription on conflict (by userId)
 export async function upsertSubscription({
   id,
   userId,
@@ -157,7 +151,7 @@ export async function upsertSubscription({
 }
 
 
-// update by provider subscription id
+// update subscription by provider subscription id
 export async function updateSubscriptionById({
   id,
   data,
@@ -184,7 +178,7 @@ export async function updateSubscriptionById({
 }
 
 
-// update by userId
+// update subscription by userId
 export async function updateSubscriptionByUserId({
   userId,
   data,
@@ -211,7 +205,7 @@ export async function updateSubscriptionByUserId({
 }
 
 
-// get subscription
+// get user's subscription (single)
 export async function getSubscriptionByUserId(userId: string) {
   return (
     (await db.select().from(subscriptions).where(eq(subscriptions.userId, userId)))[0] ?? null
@@ -219,7 +213,7 @@ export async function getSubscriptionByUserId(userId: string) {
 }
 
 
-// expire subscription
+// mark subscription as expired
 export async function expireSubscription(id: string) {
   try {
     const result = await db
@@ -236,6 +230,8 @@ export async function expireSubscription(id: string) {
 
 
 // PAYMENTS
+
+// create payment record
 export async function createPayment({
   id,
   userId,
@@ -260,11 +256,15 @@ export async function createPayment({
   return result[0];
 }
 
+
+// get payment by id
 export async function getPaymentById(id: string) {
   const [payment] = await db.select().from(payments).where(eq(payments?.id, id)).limit(1)
   return payment ?? null;
 }
 
+
+// update payment fields
 export async function updatePaymentById({
   id,
   data,
@@ -292,6 +292,8 @@ export async function updatePaymentById({
 
 
 // WEBHOOK EVENTS
+
+// store processed webhook event (idempotency)
 export async function createWebhookEvent({
   id,
   type,
@@ -307,6 +309,8 @@ export async function createWebhookEvent({
   return result[0];
 }
 
+
+// check if webhook event already processed
 export async function hasWebhookEvent(id: string) {
   const event =
     (await db.select().from(webhookEvents).where(eq(webhookEvents.id, id)))[0];
@@ -316,6 +320,8 @@ export async function hasWebhookEvent(id: string) {
 
 
 // USER TRACKING
+
+// update last login + increment login count
 export async function updateUserLogin({
   authId,
   lastLoginAt = new Date(),

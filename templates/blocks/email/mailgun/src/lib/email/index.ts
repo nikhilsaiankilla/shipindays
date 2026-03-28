@@ -1,20 +1,21 @@
-// FILE: src/lib/email/index.ts
-// ROUTE: not a route — imported anywhere that sends email
-// ROLE: Mailgun provider implementation
-// ─────────────────────────────────────────────────────────────────────────────
+// Mailgun client setup
 import formData from "form-data";
 import Mailgun from "mailgun.js";
 
 const mailgun = new Mailgun(formData);
+
+// initialize Mailgun client with API key
 const mg = mailgun.client({
     username: "api",
     key: process.env.MAILGUN_API_KEY || "",
 });
 
+// domain + sender config (fallback used if env missing)
 const DOMAIN = process.env.MAILGUN_DOMAIN || "yourdomain.com";
 const FROM = `You <hello@${DOMAIN}>`;
 
-// ─── sendWelcomeEmail ─────────────────────────────────────────────────────────
+
+// send welcome email after user signup
 export async function sendWelcomeEmail({
     to,
     name,
@@ -39,7 +40,8 @@ export async function sendWelcomeEmail({
     });
 }
 
-// ─── sendPasswordResetEmail ───────────────────────────────────────────────────
+
+// send password reset email with secure link
 export async function sendPasswordResetEmail({
     to,
     resetUrl,

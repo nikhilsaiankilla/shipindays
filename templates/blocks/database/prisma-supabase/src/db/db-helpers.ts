@@ -1,7 +1,8 @@
-// src/db/index.ts
 import { prisma } from '@/src/lib/prisma'
 
 // USER
+
+// create a new user
 export async function createUser({
     email,
     authId,
@@ -26,6 +27,8 @@ export async function createUser({
     });
 }
 
+
+// fetch user by unique field
 export async function getUser({
     field,
     value,
@@ -48,9 +51,10 @@ export async function getUser({
     return null;
 }
 
+
 // SUBSCRIPTIONS
 
-// keep but DO NOT use in webhooks
+// direct insert (avoid using in webhook flows)
 export async function createSubscription({
     id,
     userId,
@@ -78,7 +82,9 @@ export async function createSubscription({
     });
 }
 
-// MAIN METHOD (use this everywhere)
+
+// insert or update subscription (primary method)
+// ensures one subscription per user (userId must be unique)
 export async function upsertSubscription({
     id,
     userId,
@@ -96,7 +102,7 @@ export async function upsertSubscription({
 }) {
     return prisma.subscription.upsert({
         where: {
-            userId, // unique constraint
+            userId,
         },
         create: {
             id,
@@ -116,7 +122,8 @@ export async function upsertSubscription({
     });
 }
 
-// update by provider subscription id
+
+// update using provider subscription id
 export async function updateSubscriptionById({
     id,
     data,
@@ -132,10 +139,11 @@ export async function updateSubscriptionById({
     return prisma.subscription.update({
         where: { id },
         data,
-    }).catch(() => null); // prevent crash if not found
+    }).catch(() => null); // return null if not found
 }
 
-// update by userId (safer fallback)
+
+// update using userId (fallback path)
 export async function updateSubscriptionByUserId({
     userId,
     data,
@@ -154,14 +162,16 @@ export async function updateSubscriptionByUserId({
     }).catch(() => null);
 }
 
-// get subscription
+
+// get user's subscription
 export async function getSubscriptionByUserId(userId: string) {
     return prisma.subscription.findUnique({
         where: { userId },
     });
 }
 
-// expire subscription
+
+// mark subscription as expired
 export async function expireSubscription(id: string) {
     return prisma.subscription.update({
         where: { id },
@@ -171,7 +181,10 @@ export async function expireSubscription(id: string) {
     }).catch(() => null);
 }
 
+
 // PAYMENTS
+
+// create payment record
 export async function createPayment({
     id,
     userId,
@@ -196,13 +209,18 @@ export async function createPayment({
     });
 }
 
+
+// fetch payment by id
 export async function getPaymentById(id: string) {
     return prisma.payment.findUnique({
         where: { id },
     });
 }
 
+
 // WEBHOOK EVENTS
+
+// store processed webhook event (idempotency)
 export async function createWebhookEvent({
     id,
     type,
@@ -218,6 +236,8 @@ export async function createWebhookEvent({
     });
 }
 
+
+// check if webhook event already handled
 export async function hasWebhookEvent(id: string) {
     const event = await prisma.webhookEvent.findUnique({
         where: { id },
@@ -226,7 +246,10 @@ export async function hasWebhookEvent(id: string) {
     return !!event;
 }
 
+
 // USER TRACKING
+
+// update login timestamp + increment login count
 export async function updateUserLogin({
     authId,
     lastLoginAt = new Date(),
@@ -245,6 +268,8 @@ export async function updateUserLogin({
     });
 }
 
+
+// update payment fields
 export async function updatePaymentById({
     id,
     data,
@@ -264,5 +289,5 @@ export async function updatePaymentById({
                 ...data,
             },
         })
-        .catch(() => null); // prevents crash if payment not found
+        .catch(() => null); // return null if not found
 }

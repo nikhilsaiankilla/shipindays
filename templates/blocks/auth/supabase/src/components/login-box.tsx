@@ -3,33 +3,82 @@
 import { useState } from "react";
 
 export default function LoginBox() {
+    /**
+     * Stores email input for magic link login.
+     */
     const [email, setEmail] = useState("");
+
+    /**
+     * Tracks whether magic link email has been sent.
+     * Used to switch UI into confirmation state.
+     */
     const [magicSent, setMagicSent] = useState(false);
+
+    /**
+     * Tracks loading state for each auth method.
+     * - "google" → Google OAuth in progress
+     * - "magic"  → Magic link request in progress
+     */
     const [loading, setLoading] = useState<"google" | "magic" | null>(null);
+
+    /**
+     * Stores error messages for display.
+     */
     const [error, setError] = useState<string | null>(null);
 
+    /**
+     * Initiates Google OAuth flow.
+     *
+     * Flow:
+     * 1. Call backend route → generates OAuth URL
+     * 2. Redirect browser → Google login
+     */
     async function handleGoogle() {
         setLoading("google");
         setError(null);
 
+        /**
+         * Fetch OAuth URL from server.
+         */
         const res = await fetch("/api/auth/google");
         const data = await res.json();
 
+        /**
+         * Redirect user to Google if URL is returned.
+         */
         if (data.url) {
             window.location.href = data.url;
         } else {
+            /**
+             * Handle failure to start OAuth flow.
+             */
             setError("Could not start Google login. Try again.");
             setLoading(null);
         }
     }
 
+    /**
+     * Handles magic link login form submission.
+     *
+     * Flow:
+     * 1. Send email to backend
+     * 2. Supabase sends magic link
+     * 3. User clicks link → callback route completes login
+     */
     async function handleMagicLink(e: React.FormEvent) {
         e.preventDefault();
+
+        /**
+         * Prevent submission if email is empty.
+         */
         if (!email) return;
 
         setLoading("magic");
         setError(null);
 
+        /**
+         * Send email to magic link API.
+         */
         const res = await fetch("/api/auth/magic", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -38,27 +87,47 @@ export default function LoginBox() {
 
         const data = await res.json();
 
+        /**
+         * On success → show confirmation UI
+         */
         if (res.ok) {
             setMagicSent(true);
         } else {
+            /**
+             * Display error returned from server
+             */
             setError(data.error ?? "Could not send magic link.");
         }
 
         setLoading(null);
     }
 
-    // Magic sent state (clean + centered + calm)
+    /**
+     * Confirmation UI after magic link is sent.
+     */
     if (magicSent) {
         return (
             <div className="w-full max-w-md px-4 mx-auto">
                 <div className="rounded-[20px_10px_40px_15px] border-4 border-black bg-white shadow-[8px_8px_0px_#FFA500] px-8 py-10 text-center space-y-6 rotate-1">
                     <div className="text-5xl animate-bounce">📬</div>
-                    <h1 className="text-2xl font-black uppercase italic">Check your mail!</h1>
+
+                    <h1 className="text-2xl font-black uppercase italic">
+                        Check your mail!
+                    </h1>
+
                     <p className="text-sm font-bold text-zinc-500 leading-tight italic">
-                        "We sent a magic login link to <span className="text-black underline decoration-2 decoration-blue-400">{email}</span>"
+                        "We sent a magic login link to{" "}
+                        <span className="text-black underline decoration-2 decoration-blue-400">
+                            {email}
+                        </span>"
                     </p>
+
+                    {/* Reset form to allow another attempt */}
                     <button
-                        onClick={() => { setMagicSent(false); setEmail(""); }}
+                        onClick={() => {
+                            setMagicSent(false);
+                            setEmail("");
+                        }}
                         className="text-xs font-black uppercase tracking-widest border-b-2 border-black hover:text-orange-500 transition-colors"
                     >
                         Use another email
@@ -71,6 +140,7 @@ export default function LoginBox() {
     return (
         <div className="w-full max-w-md px-4 mx-auto font-sans">
             <div className="rounded-[15px_40px_12px_35px] border-4 border-black bg-white shadow-[12px_12px_0px_0px_#000] px-8 py-12 space-y-10 relative">
+                
                 {/* Header */}
                 <div className="text-center space-y-2">
                     <h1 className="text-4xl font-black tracking-tighter uppercase italic">
@@ -81,7 +151,7 @@ export default function LoginBox() {
                     </p>
                 </div>
 
-                {/* Google Button: Sticker Style */}
+                {/* Google OAuth button */}
                 <button
                     onClick={handleGoogle}
                     disabled={loading !== null}
@@ -94,7 +164,7 @@ export default function LoginBox() {
                     Continue with Google
                 </button>
 
-                {/* Divider: Scribble Style */}
+                {/* Divider between auth methods */}
                 <div className="flex items-center gap-4">
                     <div className="h-[2px] flex-1 bg-black/10 rounded-full" />
                     <span className="text-[10px] font-black text-zinc-300 uppercase italic">
@@ -103,7 +173,7 @@ export default function LoginBox() {
                     <div className="h-[2px] flex-1 bg-black/10 rounded-full" />
                 </div>
 
-                {/* Email Form */}
+                {/* Magic link form */}
                 <form onSubmit={handleMagicLink} className="space-y-4">
                     <input
                         type="email"
@@ -129,7 +199,7 @@ export default function LoginBox() {
                     </button>
                 </form>
 
-                {/* Error Sticker */}
+                {/* Error display */}
                 {error && (
                     <div className="bg-red-50 border-2 border-red-500 p-2 rotate-1 text-center">
                         <p className="text-[10px] font-black text-red-600 uppercase">
@@ -138,7 +208,7 @@ export default function LoginBox() {
                     </div>
                 )}
 
-                {/* Footer Footer */}
+                {/* Footer */}
                 <footer className="text-center space-y-4">
                     <p className="text-[9px] font-bold text-zinc-400 uppercase tracking-widest leading-tight">
                         By continuing, you agree to our{" "}
@@ -152,6 +222,9 @@ export default function LoginBox() {
     );
 }
 
+/**
+ * Google icon used in OAuth button.
+ */
 function GoogleIcon() {
     return (
         <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
@@ -163,6 +236,9 @@ function GoogleIcon() {
     );
 }
 
+/**
+ * Loading spinner used across auth actions.
+ */
 function Spinner({ light = false }: { light?: boolean }) {
     return (
         <svg

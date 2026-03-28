@@ -6,16 +6,46 @@ import { signOut } from "next-auth/react";
 import { LogOut, Loader2 } from "lucide-react";
 
 export default function LogoutButton() {
+    /**
+     * Tracks whether logout is in progress.
+     * Used to disable the button and show a loading state.
+     */
     const [loading, setLoading] = useState(false);
+
+    /**
+     * Next.js router for client-side navigation.
+     */
     const router = useRouter();
 
+    /**
+     * Handles logout flow:
+     * 1. Calls NextAuth signOut to invalidate session
+     * 2. Redirects user to /login
+     * 3. Refreshes app state to clear any cached session data
+     */
     async function handleLogout() {
         setLoading(true);
+
         try {
+            /**
+             * Terminates the current session.
+             * NextAuth handles cookie/session cleanup internally.
+             */
             await signOut();
+
+            /**
+             * Redirect to login page after logout.
+             */
             router.push("/login");
+
+            /**
+             * Forces re-fetch of server components to avoid stale auth state.
+             */
             router.refresh();
         } catch (error) {
+            /**
+             * Restore UI state if logout fails so user can retry.
+             */
             console.error("Logout failed:", error);
             setLoading(false);
         }
@@ -29,17 +59,19 @@ export default function LogoutButton() {
         >
             {loading ? (
                 <>
+                    {/* Spinner + status text during logout */}
                     <Loader2 size={14} className="animate-spin" />
                     <span>Terminating...</span>
                 </>
             ) : (
                 <>
+                    {/* Default logout icon and label */}
                     <LogOut size={14} className="group-hover:text-red-500 transition-colors" />
                     <span>Logout</span>
                 </>
             )}
             
-            {/* Subtle "Tape" effect decoration (optional) */}
+            {/* Decorative element (visual only, no functional role) */}
             <div className="absolute -top-2 -right-1 w-4 h-2 bg-red-500/20 rotate-12 group-hover:bg-red-500/40 transition-colors" />
         </button>
     );

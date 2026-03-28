@@ -4,17 +4,47 @@ import { useState } from "react";
 import { signIn } from "next-auth/react";
 
 export default function LoginBox() {
+    /**
+     * Tracks loading state during OAuth flow.
+     */
     const [loading, setLoading] = useState(false);
+
+    /**
+     * Stores any login error message to display in UI.
+     */
     const [error, setError] = useState<string | null>(null);
 
+    /**
+     * Initiates Google OAuth login.
+     *
+     * TEMPLATE NOTE:
+     * - Currently only Google provider is configured in NextAuth.
+     * - To add more providers (GitHub, Discord, etc.),
+     *   update "@/src/lib/auth/options".
+     *
+     * Flow:
+     * 1. Calls NextAuth signIn("google")
+     * 2. Redirects to provider (Google)
+     * 3. After success → returns to callbackUrl
+     */
     async function handleGoogle() {
         setLoading(true);
         setError(null);
 
         try {
-            // This triggers the Google OAuth flow and redirects automatically
+            /**
+             * Starts OAuth flow and redirects automatically.
+             *
+             * callbackUrl:
+             * - After successful login, user is sent to /api/auth/complete
+             * - That route handles DB sync + final redirect
+             */
             await signIn("google", { callbackUrl: "/api/auth/complete" });
         } catch (err) {
+            /**
+             * If sign-in fails before redirect (rare),
+             * show error and allow retry.
+             */
             setError("Could not start Google login. Try again.");
             setLoading(false);
         }
@@ -23,7 +53,8 @@ export default function LoginBox() {
     return (
         <div className="w-full max-w-md px-4 mx-auto font-sans">
             <div className="rounded-[15px_40px_12px_35px] border-4 border-black bg-white shadow-[12px_12px_0px_0px_#000] px-8 py-12 space-y-10 relative">
-                {/* Header */}
+                
+                {/* Header section */}
                 <div className="text-center space-y-2">
                     <h1 className="text-4xl font-black tracking-tighter uppercase italic">
                         Welcome <span className="text-orange-500">Back</span>
@@ -33,7 +64,7 @@ export default function LoginBox() {
                     </p>
                 </div>
 
-                {/* Google Button: Sticker Style */}
+                {/* OAuth actions */}
                 <div className="space-y-6">
                     <button
                         onClick={handleGoogle}
@@ -43,16 +74,18 @@ export default function LoginBox() {
                             bg-white text-black shadow-[4px_4px_0px_#000] hover:shadow-none hover:translate-x-1 hover:translate-y-1
                             transition-all disabled:opacity-50"
                     >
+                        {/* Show spinner during login, otherwise Google icon */}
                         {loading ? <Spinner /> : <GoogleIcon />}
                         Continue with Google
                     </button>
 
+                    {/* Visual trust indicator */}
                     <p className="text-center text-[10px] font-black text-zinc-300 uppercase italic">
                         Secure SSL Encryption Enabled
                     </p>
                 </div>
 
-                {/* Error Sticker */}
+                {/* Error message display */}
                 {error && (
                     <div className="bg-red-50 border-2 border-red-500 p-2 rotate-1 text-center">
                         <p className="text-[10px] font-black text-red-600 uppercase">
@@ -61,13 +94,17 @@ export default function LoginBox() {
                     </div>
                 )}
 
-                {/* Footer */}
+                {/* Footer legal links */}
                 <footer className="text-center space-y-4 pt-4">
                     <p className="text-[9px] font-bold text-zinc-400 uppercase tracking-widest leading-tight">
                         By continuing, you agree to our{" "}
-                        <a href="/terms" className="text-black underline decoration-orange-500/40 hover:decoration-orange-500">Terms</a>
+                        <a href="/terms" className="text-black underline decoration-orange-500/40 hover:decoration-orange-500">
+                            Terms
+                        </a>
                         {" "}&{" "}
-                        <a href="/privacy" className="text-black underline decoration-blue-500/40 hover:decoration-blue-500">Privacy</a>
+                        <a href="/privacy" className="text-black underline decoration-blue-500/40 hover:decoration-blue-500">
+                            Privacy
+                        </a>
                     </p>
                 </footer>
             </div>
@@ -75,6 +112,9 @@ export default function LoginBox() {
     );
 }
 
+/**
+ * Google brand icon used in the login button.
+ */
 function GoogleIcon() {
     return (
         <svg className="w-5 h-5 shrink-0" viewBox="0 0 24 24">
@@ -86,6 +126,9 @@ function GoogleIcon() {
     );
 }
 
+/**
+ * Loading spinner displayed during OAuth initiation.
+ */
 function Spinner() {
     return (
         <svg

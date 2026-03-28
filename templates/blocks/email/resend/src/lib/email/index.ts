@@ -1,19 +1,13 @@
-// FILE: src/lib/email/index.ts
-// ROUTE: not a route — imported anywhere that sends email
-// ROLE: Resend provider implementation
-//
-// INJECTED BY CLI when user picks "Resend" as their email provider.
-// Replaces templates/base/src/lib/email/index.ts
-// ─────────────────────────────────────────────────────────────────────────────
-
 import { Resend } from "resend";
 
-// Resend client — reads API key from env
+// initialize Resend client using API key from env
 const resend = new Resend(process.env.RESEND_API_KEY);
 
-const FROM = "You <hello@yourdomain.com>"; // TODO: replace with your verified Resend domain
+// sender identity (must match verified domain in Resend)
+const FROM = "You <hello@yourdomain.com>";
 
-// ─── sendWelcomeEmail ─────────────────────────────────────────────────────────
+
+// send welcome email after signup
 export async function sendWelcomeEmail({
   to,
   name,
@@ -38,7 +32,8 @@ export async function sendWelcomeEmail({
   });
 }
 
-// ─── sendPasswordResetEmail ───────────────────────────────────────────────────
+
+// send password reset email with secure link
 export async function sendPasswordResetEmail({
   to,
   resetUrl,

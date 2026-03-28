@@ -1,64 +1,69 @@
 /**
- * ╔══════════════════════════════════════════════════════════════════╗
- * ║                  SHIPINDAYS CENTRALISED SEO                      ║
- * ║                                                                  ║
- * ║  Usage (any page or layout):                                     ║
- * ║                                                                  ║
- * ║  // 1. Use site defaults (home page)                             ║
- * ║  export const metadata = buildMetadata();                        ║
- * ║                                                                  ║
- * ║  // 2. Override specific fields (any other page)                 ║
- * ║  export const metadata = buildMetadata({                         ║
- * ║    title:       "Privacy Policy",                                ║
- * ║    description: "How we handle your data.",                      ║
- * ║    path:        "/privacy",                                      ║
- * ║  });                                                             ║
- * ║                                                                  ║
- * ║  // 3. Blog / dynamic routes                                     ║
- * ║  export async function generateMetadata({ params }) {            ║
- * ║    return buildMetadata({                                        ║
- * ║      title:       post.title,                                    ║
- * ║      description: post.excerpt,                                  ║
- * ║      path:        `/blog/${params.slug}`,                        ║
- * ║      image:       post.coverImage,                               ║
- * ║    });                                                           ║
- * ║  }                                                               ║
- * ╚══════════════════════════════════════════════════════════════════╝
+ * Centralised SEO configuration and helpers.
+ *
+ * TEMPLATE NOTE:
+ * Replace the SITE config values below with your own domain,
+ * brand name, and defaults after cloning this project.
+ *
+ * This file powers metadata across the entire app.
  */
 
 import type { Metadata } from "next";
 
-// SITE-WIDE DEFAULTS
-//
-// Edit these once — they propagate to every page that calls buildMetadata()
-// without overriding that field.
+/**
+ * Global SEO defaults.
+ *
+ * ⚠️ IMPORTANT:
+ * Update these values after cloning:
+ * - url
+ * - name
+ * - title
+ * - description
+ * - twitterHandle
+ */
 const SITE = {
-    /** Canonical base URL — no trailing slash */
-    url: "https://shipindays.nikhilsai.in",
+    /** 
+     * Your production domain (no trailing slash)
+     * Example: "https://yourapp.com"
+     */
+    url: "https://shipindays.nikhilsai.in", // ← replace with your domain
 
-    /** Site / brand name shown after the page title separator */
-    name: "Shipindays",
+    /** 
+     * Your product / company name
+     */
+    name: "Shipindays", // ← replace with your app name
 
-    /** Default <title> used on the home page */
-    title: "Shipindays — Ship Your Startup in Days, Not Weeks",
+    /** 
+     * Default homepage title
+     */
+    title: "Shipindays — Ship Your Startup in Days, Not Weeks", // ← customize for your product
 
-    /** Default meta description (keep under 160 chars for Google) */
+    /** 
+     * Default meta description (keep under ~160 chars)
+     */
     description:
-        "The ultimate open-source Next.js SaaS engine. Clone once, configure your providers, and go live with auth, payments, emails, and SEO in minutes.",
+        "The ultimate open-source Next.js SaaS engine. Clone once, configure your providers, and go live with auth, payments, emails, and SEO in minutes.", // ← rewrite for your product
 
-    /** Default OG / Twitter card image (1200×630 recommended) */
+    /** 
+     * Default Open Graph image (recommended: 1200×630)
+     * Place your image in /public and update path if needed
+     */
     ogImage: "/og-default.png",
 
-    /** Twitter handle (with @) */
-    twitterHandle: "@itzznikhilsai",
+    /** 
+     * Your Twitter/X handle (include @)
+     */
+    twitterHandle: "@itzznikhilsai", // ← replace with your handle
 
-    /** Separator between page title and site name, e.g. "Privacy Policy | Shipindays" */
+    /** Separator used in titles */
     titleSeparator: " | ",
 
-    /** Primary locale */
+    /** Default locale */
     locale: "en_US",
 
-    /** Keywords relevant across the whole site */
+    /**
+     * Optional keywords (not critical for SEO, safe to customize or remove)
+     */
     keywords: [
         "SaaS boilerplate",
         "Next.js starter",
@@ -72,49 +77,38 @@ const SITE = {
     ],
 } as const;
 
-// TYPES
+/**
+ * Props accepted by buildMetadata().
+ */
 export interface SEOProps {
-    /**
-     * Page-specific title.
-     * - On the home page, omit this — SITE.title is used as-is.
-     * - On any other page, this becomes: "<title> | Shipindays"
-     */
+    /** Page-specific title (appended to site name) */
     title?: string;
 
-    /** Page-specific description. Falls back to SITE.description. */
+    /** Page-specific description */
     description?: string;
 
     /**
-     * Canonical path relative to the site root, e.g. "/privacy" or "/blog/my-post".
-     * Used to build the full canonical URL and OG url.
-     * Defaults to "" (home page).
+     * Canonical path relative to root (e.g. "/privacy", "/blog/post")
      */
     path?: string;
 
     /**
-     * Absolute URL or root-relative path to the OG image.
-     * Falls back to SITE.ogImage.
-     * Recommended size: 1200×630px.
+     * OG image (absolute or root-relative)
      */
     image?: string;
 
-    /**
-     * Extra keywords merged with the site-wide keyword list.
-     * Useful for blog posts or feature-specific pages.
-     */
+    /** Extra keywords for this page */
     keywords?: string[];
 
     /**
-     * Set to true for pages you never want indexed (e.g. /dashboard, /settings).
-     * Adds noindex, nofollow robots directives.
+     * Prevent indexing (use for dashboard, auth pages, etc.)
      */
     noIndex?: boolean;
 }
 
-// buildMetadata()
-//
-// The single function you call from every page/layout.
-// Returns a fully-typed Next.js Metadata object.
+/**
+ * Core metadata builder used across the app.
+ */
 export function buildMetadata(props: SEOProps = {}): Metadata {
     const {
         title,
@@ -125,40 +119,40 @@ export function buildMetadata(props: SEOProps = {}): Metadata {
         noIndex = false,
     } = props;
 
-    // Build the final <title> string
-    // - Home page (no title prop): use SITE.title verbatim
-    // - All other pages: "Page Title | Shipindays"
     const resolvedTitle = title
         ? `${title}${SITE.titleSeparator}${SITE.name}`
         : SITE.title;
 
-    // Build absolute URLs
+    /**
+     * Construct canonical + image URLs.
+     * Uses SITE.url as the base domain.
+     */
     const canonicalUrl = `${SITE.url}${path}`;
     const imageUrl = image.startsWith("http") ? image : `${SITE.url}${image}`;
 
-    // Merge keyword lists (deduplicated)
     const allKeywords = Array.from(new Set([...SITE.keywords, ...keywords]));
 
     return {
-        // Basic
         title: resolvedTitle,
         description,
         keywords: allKeywords,
-        authors: [{ name: "Nikhil Sai Ankilla", url: "https://nikhilsai.in" }],
-        creator: "Nikhil Sai Ankilla",
+
+        /**
+         * TEMPLATE NOTE:
+         * Update author/creator info to your own identity or company.
+         */
+        authors: [{ name: "Nikhil Sai Ankilla", url: "https://nikhilsai.in" }], // ← replace
+        creator: "Nikhil Sai Ankilla", // ← replace
         publisher: SITE.name,
 
-        // Canonical
         alternates: {
             canonical: canonicalUrl,
         },
 
-        // Robots
         robots: noIndex
             ? { index: false, follow: false }
             : { index: true, follow: true, googleBot: { index: true, follow: true } },
 
-        // Open Graph
         openGraph: {
             title: resolvedTitle,
             description,
@@ -176,7 +170,6 @@ export function buildMetadata(props: SEOProps = {}): Metadata {
             ],
         },
 
-        // Twitter / X Card
         twitter: {
             card: "summary_large_image",
             title: resolvedTitle,
@@ -186,49 +179,28 @@ export function buildMetadata(props: SEOProps = {}): Metadata {
             images: [imageUrl],
         },
 
-        // App / PWA manifest
         applicationName: SITE.name,
-        metadataBase: new URL(SITE.url),
 
-        // Verification tokens
-        // Uncomment and fill in after verifying in each platform's console.
-        // verification: {
-        //   google:  "YOUR_GOOGLE_SITE_VERIFICATION_TOKEN",
-        //   yandex:  "YOUR_YANDEX_VERIFICATION_TOKEN",
-        // },
+        metadataBase: new URL(SITE.url),
     };
 }
 
-// buildArticleMetadata()
-//
-// Convenience wrapper for blog posts and docs pages.
-// Extends buildMetadata() with article-specific OG fields.
-//
-// Usage:
-//   export async function generateMetadata({ params }) {
-//     return buildArticleMetadata({
-//       title:         post.title,
-//       description:   post.excerpt,
-//       path:          `/blog/${params.slug}`,
-//       image:         post.coverImage,
-//       publishedTime: post.publishedAt,   // ISO 8601
-//       modifiedTime:  post.updatedAt,     // ISO 8601
-//       tags:          post.tags,
-//     });
-//   }
+/**
+ * Extended metadata builder for blog/article pages.
+ */
 export interface ArticleSEOProps extends SEOProps {
-    /** ISO 8601 publish date, e.g. "2025-03-01T00:00:00Z" */
     publishedTime?: string;
-    /** ISO 8601 last-modified date */
     modifiedTime?: string;
-    /** Article tags / categories */
     tags?: string[];
 }
 
 export function buildArticleMetadata(props: ArticleSEOProps): Metadata {
     const { publishedTime, modifiedTime, tags = [], ...rest } = props;
 
-    const base = buildMetadata({ ...rest, keywords: [...(rest.keywords ?? []), ...tags] });
+    const base = buildMetadata({
+        ...rest,
+        keywords: [...(rest.keywords ?? []), ...tags],
+    });
 
     return {
         ...base,
@@ -238,11 +210,17 @@ export function buildArticleMetadata(props: ArticleSEOProps): Metadata {
             publishedTime,
             modifiedTime,
             tags,
-            authors: ["https://nikhilsai.in"], // replace with your social 
+
+            /**
+             * TEMPLATE NOTE:
+             * Replace with your own author profile or organization URL.
+             */
+            authors: ["https://nikhilsai.in"], // ← replace
         },
     };
 }
 
-// RE-EXPORT SITE CONFIG
-// Useful if you need SITE.url or SITE.name elsewhere (e.g. sitemap.ts).
-export { SITE }
+/**
+ * Export SITE config for reuse (e.g. sitemap, feeds)
+ */
+export { SITE };

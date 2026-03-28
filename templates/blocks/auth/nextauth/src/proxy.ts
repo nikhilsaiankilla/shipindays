@@ -1,46 +1,84 @@
 // FILE: src/middleware.ts
-// ROLE: NextAuth Middleware implementation
-// ─────────────────────────────────────────────────────────────────────────────
+// ROLE: NextAuth-based route protection + redirect control
+//
+// This middleware runs before matched requests and handles:
+// - Blocking unauthenticated access to protected routes (/dashboard)
+// - Redirecting authenticated users away from auth pages (/login, /signup)
+//
+// Uses `withAuth` to integrate NextAuth session/token handling.
 
 import { withAuth } from "next-auth/middleware";
 import { NextResponse } from "next/server";
 
 export default withAuth(
+  /**
+   * Middleware handler executed AFTER `authorized` returns true.
+   * Used for custom redirect logic (not primary auth enforcement).
+   */
   function proxy(req) {
     const token = req.nextauth.token;
-    const isAuthPage = req.nextUrl.pathname === "/login" || req.nextUrl.pathname === "/signup";
+
+    /**
+     * Route classification
+     */
+    const isAuthPage =
+      req.nextUrl.pathname === "/login" ||
+      req.nextUrl.pathname === "/signup";
+
     const isDashboard = req.nextUrl.pathname.startsWith("/dashboard");
 
-    // 1. Redirect logged-in users away from /login or /signup to /dashboard
+    /**
+     * Redirect authenticated users away from auth pages.
+     * Prevents logged-in users from accessing /login or /signup again.
+     */
     if (isAuthPage && token) {
       return NextResponse.redirect(new URL("/dashboard", req.url));
     }
 
-    // 2. If it's a dashboard route and there's no token, 
-    // withAuth handles the redirect to /login automatically based on the 'pages' config.
+    /**
+     * Protected routes (/dashboard):
+     * - If no token → handled by `authorized` callback + NextAuth config
+     * - If token exists → request proceeds normally
+     */
     return NextResponse.next();
   },
   {
     callbacks: {
-      // This ensures the middleware function above only runs if authorized returns true.
-      // We return true here to allow our custom redirect logic for /login inside the function.
+      /**
+       * Controls whether the request is allowed to proceed to the handler.
+       *
+       * IMPORTANT:
+       * - Returning false triggers NextAuth's built-in redirect (usually to /login)
+       * - Returning true allows request to reach the middleware function above
+       */
       authorized: ({ token, req }) => {
         const isDashboard = req.nextUrl.pathname.startsWith("/dashboard");
-        // If it's a dashboard route, require a token. Otherwise, allow the request.
+
+        /**
+         * Require authentication for dashboard routes.
+         * All other routes remain public.
+         */
         if (isDashboard) return !!token;
+
         return true;
       },
     },
   }
 );
 
+/**
+ * Middleware matcher configuration.
+ *
+ * Runs on all routes EXCEPT:
+ * - /api (backend routes)
+ * - /_next/static (static assets)
+ * - /_next/image (image optimization)
+ * - /favicon.ico
+ *
+ * TEMPLATE NOTE:
+ * Narrow this matcher (e.g. "/dashboard/:path*") if you want
+ * to reduce unnecessary middleware execution for public pages.
+ */
 export const config = {
-  /*
-   * Match all request paths except for the ones starting with:
-   * - api (API routes)
-   * - _next/static (static files)
-   * - _next/image (image optimization files)
-   * - favicon.ico (favicon file)
-   */
   matcher: ["/((?!api|_next/static|_next/image|favicon.ico).*)"],
 };
