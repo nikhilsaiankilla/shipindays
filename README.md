@@ -1,6 +1,6 @@
 # shipindays
 
-> Scaffold a production-ready Next.js SaaS in seconds. Pick your stack, get auth + email wired up and working!!
+> Scaffold a production-ready Next.js SaaS in seconds. Pick your stack, get auth + email wired up and working!!!
 
 ```bash
 npx create-shipindays-app@latest mysaas
